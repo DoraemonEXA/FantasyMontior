@@ -1,0 +1,546 @@
+{
+  "LoadingHeading": [
+    "Getting your sensors ready…",
+    "正在准备传感器…"
+  ],
+  "LoadingDescription": [
+    "Discovering your hardware and collecting the first readings. This can take a few seconds on startup.",
+    "正在检测硬件并采集首次读数。启动时可能需要几秒钟。"
+  ],
+  "LoadingHelp": [
+    "Readings will appear automatically. You can browse Settings or Sensor setup while you wait.",
+    "读数将自动显示。等待期间，您可以查看“设置”或“传感器设置”。"
+  ],
+  "GuideOpen": [
+    "Open",
+    "打开"
+  ],
+  "PawnLink": [
+    "the official PawnIO download page",
+    "PawnIO 官方下载页面"
+  ],
+  "GuideInstall": [
+    "and choose Download Now. Run the installer and use the official signed edition. Windows will ask for administrator permission to install the driver.",
+    "并选择 Download Now。运行官方签名版本的安装程序。Windows 将请求管理员权限以安装驱动。"
+  ],
+  "CompareBefore": [
+    "If that does not help, compare the same sensor in the",
+    "如果仍无效，请在相同条件下使用"
+  ],
+  "CompareLink": [
+    "official LibreHardwareMonitor app",
+    "LibreHardwareMonitor 官方应用"
+  ],
+  "CompareAfter": [
+    "under the same conditions. Use Copy diagnostics above when reporting the issue. Some hardware remains unsupported even with PawnIO and administrator access.",
+    "对比同一传感器。报告问题时请使用上方“复制诊断信息”。即使已安装 PawnIO 并具有管理员权限，某些硬件仍可能不受支持。"
+  ],
+  "Settings": [
+    "Settings",
+    "设置"
+  ],
+  "Language": [
+    "Language",
+    "语言"
+  ],
+  "SampleInterval": [
+    "Sensor sampling interval (seconds)",
+    "传感器采样间隔（秒）"
+  ],
+  "SettingsHelp": [
+    "Changes apply immediately and are saved automatically. Longer intervals reduce collection frequency. Hardware and sensor names retain their original labels.",
+    "更改立即生效并自动保存。较长的间隔可降低采集频率。硬件与传感器名称保留原始标签。"
+  ],
+  "Initializing": [
+    "Initializing",
+    "正在初始化"
+  ],
+  "Monitoring": [
+    "Monitoring",
+    "正在监测"
+  ],
+  "Monitoring with errors": [
+    "Monitoring with errors",
+    "监测中（存在错误）"
+  ],
+  "Collection failed": [
+    "Collection failed",
+    "采集失败"
+  ],
+  "Stopped": [
+    "Stopped",
+    "已停止"
+  ],
+  "Stopping": [
+    "Stopping",
+    "正在停止"
+  ],
+  "Live": [
+    "Live",
+    "实时"
+  ],
+  "Unavailable": [
+    "Unavailable",
+    "不可用"
+  ],
+  "Stale": [
+    "Stale",
+    "已过期"
+  ],
+  "Load": [
+    "Load",
+    "使用率"
+  ],
+  "Temperature": [
+    "Temperature",
+    "温度"
+  ],
+  "Clock": [
+    "Clock",
+    "频率"
+  ],
+  "Voltage": [
+    "Voltage",
+    "电压"
+  ],
+  "Current": [
+    "Current",
+    "电流"
+  ],
+  "Power": [
+    "Power",
+    "功耗"
+  ],
+  "Fan": [
+    "Fan",
+    "风扇"
+  ],
+  "Flow": [
+    "Flow",
+    "流量"
+  ],
+  "Control": [
+    "Control",
+    "控制"
+  ],
+  "Level": [
+    "Level",
+    "水平"
+  ],
+  "Factor": [
+    "Factor",
+    "系数"
+  ],
+  "Data": [
+    "Data",
+    "数据量"
+  ],
+  "SmallData": [
+    "SmallData",
+    "小数据量"
+  ],
+  "Throughput": [
+    "Throughput",
+    "吞吐量"
+  ],
+  "Frequency": [
+    "Frequency",
+    "频率"
+  ],
+  "Energy": [
+    "Energy",
+    "能量"
+  ],
+  "Noise": [
+    "Noise",
+    "噪声"
+  ],
+  "Conductivity": [
+    "Conductivity",
+    "电导率"
+  ],
+  "Humidity": [
+    "Humidity",
+    "湿度"
+  ],
+  "Cpu": [
+    "Cpu",
+    "CPU"
+  ],
+  "GpuNvidia": [
+    "GpuNvidia",
+    "NVIDIA GPU"
+  ],
+  "GpuAmd": [
+    "GpuAmd",
+    "AMD GPU"
+  ],
+  "GpuIntel": [
+    "GpuIntel",
+    "Intel GPU"
+  ],
+  "Administrator": [
+    "Administrator",
+    "管理员"
+  ],
+  "Standard user": [
+    "Standard user",
+    "标准用户"
+  ],
+  "Installed": [
+    "Installed",
+    "已安装"
+  ],
+  "Not detected": [
+    "Not detected",
+    "未检测到"
+  ],
+  "Never": [
+    "Never",
+    "从未"
+  ],
+  "Waiting for readings": [
+    "Waiting for readings",
+    "等待读数"
+  ],
+  "Waiting for first collection": [
+    "Waiting for first collection",
+    "等待首次采集"
+  ],
+  "Discovering CPU and GPU sensors…": [
+    "Discovering CPU and GPU sensors…",
+    "正在检测 CPU 和 GPU 传感器…"
+  ],
+  "Refresh delayed — readings may be stale": [
+    "Refresh delayed — readings may be stale",
+    "刷新延迟 — 读数可能已过期"
+  ],
+  "No successful refresh yet": [
+    "No successful refresh yet",
+    "尚未成功刷新"
+  ],
+  "{0} detected sensors": [
+    "{0} detected sensors",
+    "已检测到 {0} 个传感器"
+  ],
+  "Last successful refresh: {0:HH:mm:ss}   •   {1:0}s ago": [
+    "Last successful refresh: {0:HH:mm:ss}   •   {1:0}s ago",
+    "上次成功刷新：{0:HH:mm:ss}   •   {1:0} 秒前"
+  ],
+  "Usage: {0}   •   Temperature: {1}": [
+    "Usage: {0}   •   Temperature: {1}",
+    "使用率：{0}   •   温度：{1}"
+  ],
+  "{0} live": [
+    "{0} live",
+    "{0} 个实时读数"
+  ],
+  "MISSING / UNAVAILABLE": [
+    "MISSING / UNAVAILABLE",
+    "缺失 / 不可用"
+  ],
+  "CPU not detected": [
+    "CPU not detected",
+    "未检测到 CPU"
+  ],
+  "GPU not detected": [
+    "GPU not detected",
+    "未检测到 GPU"
+  ],
+  "Required readings missing or stale; inspect each device below": [
+    "Required readings missing or stale; inspect each device below",
+    "必要读数缺失或已过期，请查看下方各设备"
+  ],
+  "CPU/GPU values reported. Verify prerequisites and compare under workload before accepting them.": [
+    "CPU/GPU values reported. Verify prerequisites and compare under workload before accepting them.",
+    "已获取 CPU/GPU 读数。请确认驱动和权限，并在负载下对比后再确认其准确性。"
+  ],
+  "PawnIO was detected. Start at step 3; if readings are still missing, follow the troubleshooting steps below.": [
+    "PawnIO was detected. Start at step 3; if readings are still missing, follow the troubleshooting steps below.",
+    "已检测到 PawnIO。请从第 3 步开始；如果读数仍缺失，请按下方步骤排查。"
+  ],
+  "PawnIO was not detected. Start at step 1, then restart the app to check again.": [
+    "PawnIO was not detected. Start at step 1, then restart the app to check again.",
+    "未检测到 PawnIO。请从第 1 步开始，然后重启应用重新检查。"
+  ],
+  "We could not confirm PawnIO’s installation status. Check whether it is installed, then restart the app. Use Copy diagnostics if this continues.": [
+    "We could not confirm PawnIO’s installation status. Check whether it is installed, then restart the app. Use Copy diagnostics if this continues.",
+    "无法确认 PawnIO 的安装状态。请检查是否已安装，然后重启应用。如果问题持续，请复制诊断信息。"
+  ],
+  "Live means a value was returned, not that accuracy has been verified.": [
+    "Live means a value was returned, not that accuracy has been verified.",
+    "“实时”表示已返回数值，不代表已验证准确性。"
+  ],
+  "PawnIO is not confirmed installed. CPU/motherboard readings may be missing or misleading (including 0°C). Sensor feasibility is not yet proven.": [
+    "PawnIO is not confirmed installed. CPU/motherboard readings may be missing or misleading (including 0°C). Sensor feasibility is not yet proven.",
+    "尚未确认安装 PawnIO。CPU/主板读数可能缺失或不可靠（包括 0°C），尚不能确认传感器可用。"
+  ],
+  "Rediscovery requested. Waiting for the current hardware call to finish…": [
+    "Rediscovery requested. Waiting for the current hardware call to finish…",
+    "已请求重新检测，正在等待当前硬件调用完成…"
+  ],
+  "Diagnostics copied to clipboard.": [
+    "Diagnostics copied to clipboard.",
+    "诊断信息已复制到剪贴板。"
+  ],
+  "Could not copy diagnostics: {0}": [
+    "Could not copy diagnostics: {0}",
+    "无法复制诊断信息：{0}"
+  ],
+  "Could not open the browser: {0}": [
+    "Could not open the browser: {0}",
+    "无法打开浏览器：{0}"
+  ],
+  "Could not open the application folder: {0}": [
+    "Could not open the application folder: {0}",
+    "无法打开应用目录：{0}"
+  ],
+  "Closing hardware access. Waiting for any active driver call to finish…": [
+    "Closing hardware access. Waiting for any active driver call to finish…",
+    "正在关闭硬件访问，等待正在进行的驱动调用完成…"
+  ],
+  "Could not save settings: {0}": [
+    "Could not save settings: {0}",
+    "无法保存设置：{0}"
+  ],
+  "{0}\nLast valid reading: {1}\n{2}": [
+    "{0}\nLast valid reading: {1}\n{2}",
+    "{0}\n上次有效读数：{1}\n{2}"
+  ],
+  "Windows did not grant administrator access. CPU temperature monitoring needs this access; please check your account permissions.": [
+    "Windows did not grant administrator access. CPU temperature monitoring needs this access; please check your account permissions.",
+    "Windows 未授予管理员权限。CPU 温度监测需要此权限，请检查账户权限。"
+  ],
+  "Windows could not start the administrator instance.": [
+    "Windows could not start the administrator instance.",
+    "Windows 无法启动管理员实例。"
+  ],
+  "FantasyMontior needs administrator access to read CPU temperatures through PawnIO.\n\n{0}": [
+    "FantasyMontior needs administrator access to read CPU temperatures through PawnIO.\n\n{0}",
+    "FantasyMontior 需要管理员权限以通过 PawnIO 读取 CPU 温度。\n\n{0}"
+  ],
+  "Could not start sensor monitoring": [
+    "Could not start sensor monitoring",
+    "无法启动传感器监测"
+  ],
+  "Partial readings": [
+    "Partial readings",
+    "部分读数可用"
+  ],
+  "WindowTitle": [
+    "FantasyMontior — Sensor validation",
+    "FantasyMontior — 传感器验证"
+  ],
+  "ValidationHeading": [
+    "Sensor validation",
+    "传感器验证"
+  ],
+  "DiagnosticsSubtitle": [
+    "FantasyMontior · Live hardware diagnostics",
+    "FantasyMontior · 实时硬件诊断"
+  ],
+  "RetryDiscovery": [
+    "Retry discovery",
+    "重新检测"
+  ],
+  "CopyDiagnostics": [
+    "Copy diagnostics",
+    "复制诊断信息"
+  ],
+  "OpenSetup": [
+    "CPU temperature missing or stuck at 0°C? Open setup guide",
+    "CPU 温度缺失或始终为 0°C？打开设置指南"
+  ],
+  "PrimarySensors": [
+    "CPU & GPU",
+    "CPU 和 GPU"
+  ],
+  "AllSensors": [
+    "All sensors",
+    "所有传感器"
+  ],
+  "Filter": [
+    "Filter",
+    "筛选"
+  ],
+  "FilterHint": [
+    "Filter by hardware, sensor name, type, or identifier",
+    "按硬件、传感器名称、类型或标识符筛选"
+  ],
+  "FilterAccessibleName": [
+    "Filter sensors",
+    "筛选传感器"
+  ],
+  "Hardware": [
+    "Hardware",
+    "硬件"
+  ],
+  "Sensor": [
+    "Sensor",
+    "传感器"
+  ],
+  "Type": [
+    "Type",
+    "类型"
+  ],
+  "Value": [
+    "Value",
+    "数值"
+  ],
+  "Unit": [
+    "Unit",
+    "单位"
+  ],
+  "State": [
+    "State",
+    "状态"
+  ],
+  "Identifier": [
+    "Identifier",
+    "标识符"
+  ],
+  "SensorSetup": [
+    "Sensor setup",
+    "传感器配置"
+  ],
+  "SetupHeading": [
+    "Let’s get your CPU temperature working",
+    "开始读取 CPU 温度"
+  ],
+  "SetupIntroduction": [
+    "FantasyMontior uses PawnIO, a hardware-access driver, to read low-level CPU and motherboard sensors. Other readings can work even when this driver is missing.",
+    "FantasyMontior 使用 PawnIO 硬件访问驱动读取 CPU 和主板底层传感器。即使未安装此驱动，其他读数也可能正常。"
+  ],
+  "ElevationGuide": [
+    "FantasyMontior requests administrator access at launch so it can read CPU temperatures through PawnIO. Approve the Windows prompt to continue. If you cancel, the app will not open. There is no need to select Run as administrator yourself.",
+    "FantasyMontior 启动时会请求管理员权限，以便通过 PawnIO 读取 CPU 温度。请允许 Windows 提示以继续；取消后应用将退出，无需手动选择“以管理员身份运行”。"
+  ],
+  "StartupStatus": [
+    "Status at app startup",
+    "应用启动时的状态"
+  ],
+  "InstallHeading": [
+    "1. Install PawnIO",
+    "1. 安装 PawnIO"
+  ],
+  "AlreadyInstalled": [
+    "Already installed? Continue to step 2. This app does not download or install anything when you open the guide.",
+    "已安装？请继续第 2 步。打开本指南不会下载或安装任何内容。"
+  ],
+  "RestartHeading": [
+    "2. Restart FantasyMontior",
+    "2. 重启 FantasyMontior"
+  ],
+  "RestartGuide": [
+    "After installing PawnIO for the first time, close this app and open it again so the library can detect the driver. Approve the Windows administrator prompt at launch. If the installer requests a Windows restart, do that first. Retry discovery alone does not refresh the startup driver status.",
+    "首次安装 PawnIO 后，请关闭并重新打开应用，使硬件库检测到驱动，并允许启动时的管理员权限提示。如果安装程序要求重启 Windows，请先重启。仅重新检测不会更新启动时的驱动状态。"
+  ],
+  "CheckTemperatureHeading": [
+    "3. Check your CPU temperature",
+    "3. 检查 CPU 温度"
+  ],
+  "CheckTemperatureGuide": [
+    "Return to CPU & GPU. Look for a plausible temperature that changes between idle and normal activity. An Installed status only confirms driver presence; a Live value or a constant 0°C does not prove the sensor is working.",
+    "返回“CPU 和 GPU”，观察温度是否合理，以及是否随空闲和正常活动变化。“已安装”仅表示存在驱动；“实时”读数或恒定的 0°C 并不能证明传感器正常。"
+  ],
+  "TroubleshootingHeading": [
+    "Still missing or stuck at zero?",
+    "仍然缺失或始终为零？"
+  ],
+  "TroubleshootingGuide": [
+    "Check that the status above shows PawnIO installed and Administrator. Launch FantasyMontior.exe directly from its application folder if you are using an older shortcut or a development tool that does not request elevation.",
+    "请确认上方状态显示 PawnIO 已安装且具有管理员权限。如果旧快捷方式或开发工具未请求提权，请从应用目录直接启动 FantasyMontior.exe。"
+  ],
+  "OpenApplicationFolder": [
+    "Open application folder",
+    "打开应用目录"
+  ],
+  "Could not load settings: {0}": [
+    "Could not load settings: {0}",
+    "无法读取设置：{0}"
+  ],
+  "WidgetAppearance": [
+    "Widget appearance",
+    "桌面组件外观"
+  ],
+  "FontSize": [
+    "Font size",
+    "字体大小"
+  ],
+  "Transparency": [
+    "Transparency",
+    "透明度"
+  ],
+  "WidgetSources": [
+    "Widget sensors",
+    "桌面组件传感器"
+  ],
+  "WidgetSourceHelp": [
+    "Automatic selects recognized total/core readings. Choose a source explicitly if unavailable. Hardware names and identifiers are unchanged.",
+    "自动选择已识别的总负载或核心读数。若不可用，请手动选择来源。硬件名称和标识符保持原样。"
+  ],
+  "UsageSource": [
+    "Usage source",
+    "使用率来源"
+  ],
+  "TemperatureSource": [
+    "Temperature source",
+    "温度来源"
+  ],
+  "Hide widget": [
+    "Hide widget",
+    "隐藏组件"
+  ],
+  "Show widget": [
+    "Show widget",
+    "显示组件"
+  ],
+  "Diagnostics": [
+    "Diagnostics",
+    "诊断"
+  ],
+  "Lock widget": [
+    "Lock widget",
+    "锁定组件"
+  ],
+  "Unlock widget": [
+    "Unlock widget",
+    "解锁组件"
+  ],
+  "Reset position": [
+    "Reset position",
+    "重置位置"
+  ],
+  "Exit": [
+    "Exit",
+    "退出"
+  ],
+  "Automatic": [
+    "Automatic",
+    "自动"
+  ],
+  "Choose a sensor in Settings": [
+    "Choose a sensor in Settings",
+    "请在设置中选择传感器"
+  ],
+  "Discovering sensors…": [
+    "Discovering sensors…",
+    "正在发现传感器…"
+  ],
+  "Closing hardware access…": [
+    "Closing hardware access…",
+    "正在关闭硬件访问…"
+  ],
+  "Sensor notice · Open Diagnostics": [
+    "Sensor notice · Open Diagnostics",
+    "传感器提示 · 打开诊断"
+  ],
+  "Retry desktop attachment": ["Retry desktop attachment", "重试桌面连接"],
+  "Widget attached to the desktop.": ["Widget attached to the desktop.", "组件已连接到桌面。"],
+  "Widget desktop attachment has not been requested.": ["Widget desktop attachment has not been requested.", "尚未请求连接桌面组件。"],
+  "Desktop attachment unavailable. Use Retry desktop attachment from the tray.": ["Desktop attachment unavailable. Use Retry desktop attachment from the tray.", "桌面连接不可用。请在托盘菜单中选择“重试桌面连接”。"],
+  "Desktop attachment blocked by incompatible DPI awareness. Use Retry desktop attachment from the tray.": ["Desktop attachment blocked by incompatible DPI awareness. Use Retry desktop attachment from the tray.", "DPI 感知模式不兼容，无法连接桌面。请在托盘菜单中选择“重试桌面连接”。"],
+  "Desktop attachment needs Windows 10 version 1607 or later.": ["Desktop attachment needs Windows 10 version 1607 or later.", "桌面连接需要 Windows 10 1607 或更高版本。"],
+  "Desktop attachment failed. Use Retry desktop attachment from the tray.": ["Desktop attachment failed. Use Retry desktop attachment from the tray.", "桌面连接失败。请在托盘菜单中选择“重试桌面连接”。"],
+  "Desktop connection lost. Use Retry desktop attachment from the tray.": ["Desktop connection lost. Use Retry desktop attachment from the tray.", "桌面连接已断开。请在托盘菜单中选择“重试桌面连接”。"]
+}

@@ -1,0 +1,55 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <SolidColorBrush x:Key="PageBrush" Color="#F4F6F8"/>
+    <SolidColorBrush x:Key="TextBrush" Color="#202936"/>
+    <SolidColorBrush x:Key="MutedBrush" Color="#566273"/>
+    <SolidColorBrush x:Key="BorderBrush" Color="#D7DDE5"/>
+    <BooleanToVisibilityConverter x:Key="BooleanToVisibility"/>
+    <Style x:Key="SensorContent" TargetType="FrameworkElement">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                <Setter Property="Visibility" Value="Collapsed"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+    <DataTemplate x:Key="SensorLoading">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="28" MaxWidth="460" VerticalAlignment="Center">
+                <TextBlock Text="{DynamicResource Text.LoadingHeading}" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                <TextBlock Text="{DynamicResource Text.LoadingDescription}" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,7,0,0"/>
+                <ProgressBar IsIndeterminate="{Binding IsLoading}" Height="5" Margin="0,20,0,16"
+                             AutomationProperties.Name="{DynamicResource Text.LoadingHeading}"/>
+                <TextBlock Text="{DynamicResource Text.LoadingHelp}" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"/>
+            </StackPanel>
+        </ScrollViewer>
+    </DataTemplate>
+    <Style x:Key="Panel" TargetType="Border">
+        <Setter Property="Background" Value="White"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Padding" Value="14"/>
+    </Style>
+    <Style TargetType="Button">
+        <Setter Property="Padding" Value="12,8"/>
+        <Setter Property="MinHeight" Value="34"/>
+    </Style>
+    <Style TargetType="TabItem"><Setter Property="Padding" Value="16,9"/></Style>
+    <Style x:Key="SetupBody" TargetType="TextBlock">
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="Margin" Value="0,7,0,0"/>
+        <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/>
+    </Style>
+    <Style x:Key="SetupHeading" TargetType="TextBlock">
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="Margin" Value="0,18,0,0"/>
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <Style x:Key="ReadingStateText" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="#23653D"/>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding RawState}" Value="Stale"><Setter Property="Foreground" Value="#975700"/></DataTrigger>
+            <DataTrigger Binding="{Binding RawState}" Value="Unavailable"><Setter Property="Foreground" Value="#8C3E32"/></DataTrigger>
+        </Style.Triggers>
+    </Style>
+</ResourceDictionary>

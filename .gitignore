@@ -1,0 +1,29 @@
+bin/
+obj/
+/packages/
+riderModule.iml
+/_ReSharper.Caches/
+/artifacts/
+
+# Local IDE state and user settings
+/.idea/
+/.vs/
+*.user
+*.suo
+*.sln.docstates
+
+# Local credentials and signing material
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.pem
+*.key
+
+# Local diagnostics and preferences (including custom probe output directories)
+TestResults/
+*.log
+snapshot.json
+summary.json
+settings.json

@@ -1,0 +1,211 @@
+<Window x:Class="FantasyMontior.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{DynamicResource Text.WindowTitle}" Width="1080" Height="780"
+        MinWidth="760" MinHeight="640" FontFamily="Segoe UI" FontSize="13"
+        Background="{StaticResource PageBrush}" Foreground="{StaticResource TextBrush}"
+        Loaded="OnLoaded" Closing="OnClosing">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/><RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid Margin="0,0,0,18">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="{DynamicResource Text.ValidationHeading}" FontSize="26" FontWeight="SemiBold"/>
+                <TextBlock Text="{DynamicResource Text.DiagnosticsSubtitle}" Foreground="{StaticResource MutedBrush}" Margin="0,4,0,0"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Content="{DynamicResource Text.RetryDiscovery}" Click="OnRetry" IsEnabled="{Binding CanRetry}"/>
+                <Button Content="{DynamicResource Text.CopyDiagnostics}" Click="OnCopy" Margin="8,0,0,0"/>
+            </StackPanel>
+        </Grid>
+        <Border Grid.Row="1" Style="{StaticResource Panel}" Margin="0,0,0,12">
+            <StackPanel>
+                <TextBlock Text="{Binding Status}" FontSize="16" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding LastRefresh}" Foreground="{StaticResource MutedBrush}" Margin="0,5,0,0"/>
+                <TextBlock Text="{Binding DesktopStatus}" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                <TextBlock Text="{Binding EnvironmentLabel}" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                <TextBlock Text="{Binding PrerequisiteNotice}" TextWrapping="Wrap" Foreground="#975700" Margin="0,5,0,0"/>
+                <Button Content="{DynamicResource Text.OpenSetup}" Click="OnOpenSetup"
+                        HorizontalAlignment="Left" Margin="0,10,0,0"/>
+            </StackPanel>
+        </Border>
+        <StackPanel Grid.Row="2" Margin="0,0,0,12">
+            <TextBlock Text="{Binding Coverage}" TextWrapping="Wrap" FontWeight="SemiBold"/>
+            <TextBox Text="{Binding Errors, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="82"
+                     VerticalScrollBarVisibility="Auto" Foreground="#9E2929" Background="Transparent" BorderThickness="0" Padding="0" Margin="0,6,0,0">
+                <TextBox.Style><Style TargetType="TextBox"><Style.Triggers>
+                    <Trigger Property="Text" Value=""><Setter Property="Visibility" Value="Collapsed"/></Trigger>
+                </Style.Triggers></Style></TextBox.Style>
+            </TextBox>
+        </StackPanel>
+        <TabControl x:Name="MainTabs" Grid.Row="3" Background="White" BorderBrush="{StaticResource BorderBrush}">
+            <TabItem Header="{DynamicResource Text.PrimarySensors}">
+                <Grid>
+                <ContentControl Content="{Binding}" ContentTemplate="{StaticResource SensorLoading}"
+                                Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibility}}"/>
+
+                <ScrollViewer Style="{StaticResource SensorContent}" VerticalScrollBarVisibility="Auto" Padding="14" HorizontalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding Groups}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Expander IsExpanded="True" Margin="0,0,0,16" HorizontalContentAlignment="Stretch">
+                                    <Expander.Header>
+                                        <StackPanel Margin="4,3">
+                                            <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{Binding Coverage}" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                    </Expander.Header>
+                                    <ItemsControl ItemsSource="{Binding Sensors}" Margin="24,8,0,0">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border BorderBrush="#EEF0F3" BorderThickness="0,0,0,1" Padding="8,6" ToolTip="{Binding Detail}">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/><ColumnDefinition Width="100"/>
+                                                            <ColumnDefinition Width="105"/><ColumnDefinition Width="40"/><ColumnDefinition Width="95"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding Kind}" Foreground="{StaticResource MutedBrush}"/>
+                                                        <TextBlock Grid.Column="2" Text="{Binding Value}" FontWeight="SemiBold" TextAlignment="Right"/>
+                                                        <TextBlock Grid.Column="3" Text="{Binding Unit}" Margin="8,0,0,0"/>
+                                                        <TextBlock Grid.Column="4" Text="{Binding State}" Style="{StaticResource ReadingStateText}" Margin="10,0,0,0"/>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Expander>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+                </Grid>
+            </TabItem>
+            <TabItem Header="{DynamicResource Text.AllSensors}">
+                <Grid>
+                <ContentControl Content="{Binding}" ContentTemplate="{StaticResource SensorLoading}"
+                                Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibility}}"/>
+                <Grid Margin="12" Style="{StaticResource SensorContent}">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <DockPanel Margin="0,0,0,10">
+                        <TextBlock Text="{DynamicResource Text.Filter}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBlock Text="{Binding SensorCount}" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                        <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}" Padding="7,5"
+                                 ToolTip="{DynamicResource Text.FilterHint}" AutomationProperties.Name="{DynamicResource Text.FilterAccessibleName}"/>
+                    </DockPanel>
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding SensorView}" IsReadOnly="True" AutoGenerateColumns="False"
+                              CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="True"
+                              SelectionMode="Single" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                              HorizontalGridLinesBrush="#EEF0F3" RowHeaderWidth="0" BorderBrush="{StaticResource BorderBrush}"
+                              EnableRowVirtualization="True" EnableColumnVirtualization="True" RowHeight="32">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="{DynamicResource Text.Hardware}" Binding="{Binding Hardware}" Width="190"/>
+                            <DataGridTextColumn Header="{DynamicResource Text.Sensor}" Binding="{Binding Name}" Width="180"/>
+                            <DataGridTextColumn Header="{DynamicResource Text.Type}" Binding="{Binding Kind}" Width="100"/>
+                            <DataGridTextColumn Header="{DynamicResource Text.Value}" Binding="{Binding Value}" SortMemberPath="NumericValue" Width="105"/>
+                            <DataGridTextColumn Header="{DynamicResource Text.Unit}" Binding="{Binding Unit}" Width="65"/>
+                            <DataGridTextColumn Header="{DynamicResource Text.State}" Binding="{Binding State}" Width="95" ElementStyle="{StaticResource ReadingStateText}"/>
+                            <DataGridTextColumn Header="{DynamicResource Text.Identifier}" Binding="{Binding Id}" Width="300"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+                </Grid>
+            </TabItem>
+            <TabItem x:Name="SetupTab" Header="{DynamicResource Text.SensorSetup}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="18">
+                    <StackPanel>
+                        <TextBlock Text="{DynamicResource Text.SetupHeading}" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                        <TextBlock Style="{StaticResource SetupBody}" Text="{DynamicResource Text.SetupIntroduction}"/>
+                        <TextBlock Style="{StaticResource SetupBody}" Text="{DynamicResource Text.ElevationGuide}"/>
+                        <Border Style="{StaticResource Panel}" Margin="0,12,0,4">
+                            <StackPanel>
+                                <TextBlock Text="{DynamicResource Text.StartupStatus}" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding EnvironmentLabel}" Style="{StaticResource SetupBody}"/>
+                                <TextBlock Text="{Binding SetupStatus}" Style="{StaticResource SetupBody}"/>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Text="{DynamicResource Text.InstallHeading}" Style="{StaticResource SetupHeading}"/>
+                        <TextBlock Style="{StaticResource SetupBody}">
+                            <Run Text="{DynamicResource Text.GuideOpen}"/> <Hyperlink NavigateUri="https://pawnio.eu/" RequestNavigate="OnNavigate"><Run Text="{DynamicResource Text.PawnLink}"/></Hyperlink>
+                            <Run Text="{DynamicResource Text.GuideInstall}"/>
+                        </TextBlock>
+                        <TextBlock Text="{DynamicResource Text.AlreadyInstalled}" Style="{StaticResource SetupBody}"/>
+                        <TextBlock Text="{DynamicResource Text.RestartHeading}" Style="{StaticResource SetupHeading}"/>
+                        <TextBlock Text="{DynamicResource Text.RestartGuide}" Style="{StaticResource SetupBody}"/>
+                        <TextBlock Text="{DynamicResource Text.CheckTemperatureHeading}" Style="{StaticResource SetupHeading}"/>
+                        <TextBlock Text="{DynamicResource Text.CheckTemperatureGuide}" Style="{StaticResource SetupBody}"/>
+                        <TextBlock Text="{DynamicResource Text.TroubleshootingHeading}" Style="{StaticResource SetupHeading}"/>
+                        <TextBlock Text="{DynamicResource Text.TroubleshootingGuide}" Style="{StaticResource SetupBody}"/>
+                        <Button Content="{DynamicResource Text.OpenApplicationFolder}" Click="OnOpenApplicationFolder" HorizontalAlignment="Left" Margin="0,10,0,0"/>
+                        <TextBlock Style="{StaticResource SetupBody}">
+                            <Run Text="{DynamicResource Text.CompareBefore}"/>
+                            <Hyperlink NavigateUri="https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases" RequestNavigate="OnNavigate"><Run Text="{DynamicResource Text.CompareLink}"/></Hyperlink>
+                            <Run Text="{DynamicResource Text.CompareAfter}"/>
+                        </TextBlock>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="{DynamicResource Text.Settings}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="18">
+                    <StackPanel>
+                        <TextBlock Text="{DynamicResource Text.Settings}" FontSize="20" FontWeight="SemiBold"/>
+                        <Grid Margin="0,14,0,0">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,16,0">
+                        <TextBlock Text="{DynamicResource Text.Language}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                        <ComboBox ItemsSource="{Binding Settings.Languages}" SelectedValuePath="Code" DisplayMemberPath="Label"
+                                  SelectedValue="{Binding Settings.Language}" HorizontalAlignment="Left" Width="240" Margin="0,8,0,0"
+                                  AutomationProperties.Name="{DynamicResource Text.Language}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                        <TextBlock Text="{DynamicResource Text.SampleInterval}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                        <ComboBox ItemsSource="{Binding Settings.Intervals}" SelectedItem="{Binding Settings.SampleSeconds}"
+                                  HorizontalAlignment="Left" Width="240" Margin="0,8,0,0" AutomationProperties.Name="{DynamicResource Text.SampleInterval}"/>
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="{DynamicResource Text.SettingsHelp}" Style="{StaticResource SetupBody}"/>
+                        <TextBlock Text="{DynamicResource Text.WidgetAppearance}" Style="{StaticResource SetupHeading}"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,12,0,12">
+                            <TextBlock Text="{DynamicResource Text.FontSize}" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                            <Slider Minimum="12" Maximum="28" TickFrequency="1" IsSnapToTickEnabled="True" Width="220"
+                                    Value="{Binding Settings.FontSize}" AutomationProperties.Name="{DynamicResource Text.FontSize}"/>
+                            <TextBlock Text="{Binding Settings.FontSize, StringFormat={}{0:0}}" Margin="12,0,0,0"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <TextBlock Text="{DynamicResource Text.Transparency}" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                            <Slider Minimum="0" Maximum="0.8" TickFrequency="0.05" IsSnapToTickEnabled="True" Width="220"
+                                    Value="{Binding Settings.Transparency}" AutomationProperties.Name="{DynamicResource Text.Transparency}"/>
+                            <TextBlock Text="{Binding Settings.Transparency, StringFormat={}{0:P0}}" Margin="12,0,0,0"/>
+                        </StackPanel>
+                        <TextBlock Text="{DynamicResource Text.WidgetSources}" Style="{StaticResource SetupHeading}"/>
+                        <TextBlock Text="{DynamicResource Text.WidgetSourceHelp}" Style="{StaticResource SetupBody}"/>
+                        <ItemsControl ItemsSource="{Binding Widget.Rows}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,12,0,0">
+                                        <TextBlock Text="{Binding Label}" FontWeight="SemiBold" ToolTip="{Binding Detail}"/>
+                                        <TextBlock Text="{DynamicResource Text.UsageSource}" Margin="0,5,0,3"/>
+                                        <ComboBox ItemsSource="{Binding UsageChoices}" DisplayMemberPath="Label" SelectedValuePath="Key"
+                                                  SelectedValue="{Binding UsageKey}" AutomationProperties.Name="{DynamicResource Text.UsageSource}"/>
+                                        <StackPanel Visibility="{Binding HasTemperature, Converter={StaticResource BooleanToVisibility}}">
+                                            <TextBlock Text="{DynamicResource Text.TemperatureSource}" Margin="0,5,0,3"/>
+                                            <ComboBox ItemsSource="{Binding TemperatureChoices}" DisplayMemberPath="Label" SelectedValuePath="Key"
+                                                      SelectedValue="{Binding TemperatureKey}" AutomationProperties.Name="{DynamicResource Text.TemperatureSource}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="{Binding Settings.SaveError}" TextWrapping="Wrap" Foreground="#9E2929" Margin="0,12,0,0"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+        <StackPanel Grid.Row="4" Margin="0,14,0,0">
+            <TextBlock Text="{Binding Notice}" TextWrapping="Wrap" Margin="0,5,0,0" FontSize="12"/>
+        </StackPanel>
+    </Grid>
+</Window>
