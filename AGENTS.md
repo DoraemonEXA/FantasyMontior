@@ -16,6 +16,7 @@ The repository contains the desktop widget and its retained diagnostic window, w
 
 - `FantasyMontior.sln`: solution entry point.
 - `FantasyMontior/FantasyMontior.csproj`: WPF executable targeting `net9.0-windows`, with nullable reference types and implicit usings enabled.
+- `FantasyMontior/Properties/PublishProfiles/SingleFile.pubxml`: self-contained Windows x64 single-executable publishing; use `dotnet publish FantasyMontior/FantasyMontior.csproj -c Release -p:PublishProfile=SingleFile`. Native libraries extract at launch; PawnIO remains a separate prerequisite.
 - `FantasyMontior/App.xaml` and `App.xaml.cs`: application lifecycle; `Resources/Theme.xaml` contains shared presentation resources.
 - `FantasyMontior/WidgetView.xaml`, `WidgetWindow.cs`, and `WidgetApplication.cs`: static widget presentation, placement, context menus, and tray lifetime. MainWindow is the on-demand diagnostic/settings window.
 - `FantasyMontior/DesktopWidgetHost.cs`: C# P/Invoke desktop attachment to Explorer's icon-view host, native child styles, DPI compatibility checks, screen/client coordinate conversion, and host-loss detection. Never fall back to a floating window or change Explorer's styles. Recovery is explicit through the tray, not automatic.

@@ -18,6 +18,18 @@ The app requests administrator access through the Windows UAC prompt at launch f
 
 Sensor discovery and collection run asynchronously on a serialized background worker. During startup or rediscovery, both sensor tabs show a localized loading panel with an indeterminate progress bar until the first collection finishes. Settings and Sensor setup remain accessible. A discovery failure ends the loading state and exposes the existing error and retry controls.
 
+## Publish a single executable
+
+From the repository root:
+
+```powershell
+dotnet publish FantasyMontior/FantasyMontior.csproj -c Release -p:PublishProfile=SingleFile
+```
+
+Distribute `FantasyMontior/bin/Release/net9.0-windows/win-x64/publish/FantasyMontior.exe`. The `SingleFile` profile targets Windows x64 and includes the .NET runtime, so users do not need to install .NET separately. It bundles native libraries for extraction at launch, disables trimming for WPF compatibility, and leaves debugging symbols out of the publish directory. Normal build/debug settings are unchanged. See the [.NET single-file deployment documentation](https://learn.microsoft.com/en-us/dotnet/core/deploying/single-file/overview) for bundling and extraction behavior.
+
+PawnIO still requires separate installation, and the app still requests administrator access at startup. Settings continue to live in `%LOCALAPPDATA%\FantasyMontior\settings.json`. Validate startup, elevation, tray/widget behavior, and sensor discovery using the published executable before distributing it.
+
 ## Desktop widget
 
 - The widget starts locked. Right-click it or the tray icon and choose **Unlock widget**, then drag a row to any position within a monitor's desktop work area. Choose **Lock widget** to prevent accidental dragging. Lock state and position persist across restarts. The menu also offers **Show/Hide**, **Settings**, **Diagnostics**, **Reset position**, and **Exit**. Double-click the tray icon to show it on the desktop without raising it over applications.
