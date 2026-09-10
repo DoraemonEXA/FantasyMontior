@@ -46,6 +46,7 @@ public static class Program
                 if (args.Length == 0)
                 {
                     VerifyPresentation();
+                    await AutoStartChecks.VerifyAsync(Path.Combine(FindRepository(), "artifacts", "ui", "autostart-test.json"));
                     await WidgetChecks.VerifyAsync(Path.Combine(FindRepository(), "artifacts", "ui"));
                 }
                 else if (args.Length == 3 && args[0] == "--widget-probe" && int.TryParse(args[1], out var seconds) && seconds is >= 1 and <= 3600)
@@ -224,6 +225,12 @@ public static class Program
         vm.Apply(snapshot, now.AddSeconds(15));
         Assert.Equal("已过期", vm.Sensors.Single(s => s.Id == "cpu/load").State);
         Render(root, 760, 600, 1.5, Path.Combine(output, "settings-zh-minimum-150.png"));
+        var autoStart = Descendants<CheckBox>(tabs).Single();
+        Assert.Equal("登录 Windows 时自动启动应用", autoStart.Content);
+        autoStart.BringIntoView();
+        root.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+        Descendants<ScrollViewer>(tabs).First().ScrollToVerticalOffset(130);
+        Render(root, 760, 600, 1.5, Path.Combine(output, "settings-autostart-zh-150.png"));
         tabs.SelectedIndex = 0;
         Render(root, 760, 600, 1.5, Path.Combine(output, "sensors-zh-minimum-150.png"));
         tabs.SelectedIndex = 2;

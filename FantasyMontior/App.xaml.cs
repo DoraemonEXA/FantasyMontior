@@ -56,6 +56,7 @@ public partial class App : Application
         }
 
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        _ = settings.InitializeAutoStartAsync(new AutoStartService());
         _widgetApplication = new WidgetApplication(new MonitoringSession(settings));
         _widgetApplication.Start();
     }

@@ -1,4 +1,7 @@
 {
+  "AutoStart": ["Auto start app when I sign into Windows", "登录 Windows 时自动启动应用"],
+  "AutoStartHelp": ["Starts with administrator access about 30 seconds after sign-in for the account running this app. Turn this off before moving or deleting the app.", "为运行此应用的账户在登录约 30 秒后以管理员权限启动。移动或删除应用前，请关闭此选项。"],
+  "Could not update automatic startup: {0}": ["Could not update automatic startup: {0}", "无法更新自动启动设置：{0}"],
   "LoadingHeading": [
     "Getting your sensors ready…",
     "正在准备传感器…"

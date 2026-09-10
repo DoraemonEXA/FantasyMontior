@@ -55,6 +55,10 @@ The library can return duplicate sensor identifiers, including different GPU loa
 
 ## Settings and language
 
+Enable **Auto start app when I sign into Windows** to launch about 30 seconds after sign-in. This is off by default. It registers a per-user Task Scheduler task with administrator privileges for the account running the app, using an interactive session without storing a password. Turning it off removes the task. Task Scheduler stores this preference; Settings reads its current state when the app starts and displays registration errors. The delay gives Explorer time to start; desktop attachment recovery remains manual through the tray. This uses Windows' [logon trigger](https://learn.microsoft.com/en-us/windows/win32/taskschd/starting-an-executable-when-a-user-logs-on).
+
+Enable it from the executable you intend to keep using. Before moving or deleting the app, turn it off; after moving, enable it again from the new location. If UAC uses a different administrator account, the task belongs to that account. Manual acceptance: enable from the installed/published app, sign out and back in, verify the widget/tray and administrator sensor session, then disable and confirm it no longer launches at the next sign-in. Automated checks do not change real startup tasks or establish sign-in behavior.
+
 Open **Settings / 设置** to switch between **English** and **简体中文**, and choose a sensor sampling interval of **1, 2, 5, or 10 seconds**. Changes apply immediately without reopening hardware. Polling remains serialized; the interval is the wait between completed collection cycles, so slow hardware calls can lengthen it.
 
 Preferences are saved automatically to `%LOCALAPPDATA%\FantasyMontior\settings.json` for the account running the app. First launch follows the Windows UI language (Chinese uses Simplified Chinese; other languages use English) and defaults to one second. Invalid or missing settings use defaults; file access failures appear in Settings. Hardware names, source sensor labels, identifiers, and raw diagnostic/error details retain their original text.

@@ -167,6 +167,10 @@
                             </StackPanel>
                         </Grid>
                         <TextBlock Text="{DynamicResource Text.SettingsHelp}" Style="{StaticResource SetupBody}"/>
+                        <CheckBox Content="{DynamicResource Text.AutoStart}" IsChecked="{Binding Settings.AutoStart}"
+                                  IsEnabled="{Binding Settings.CanChangeAutoStart}" Margin="0,16,0,0"/>
+                        <TextBlock Text="{DynamicResource Text.AutoStartHelp}" Style="{StaticResource SetupBody}"/>
+                        <TextBlock Text="{Binding Settings.AutoStartError}" TextWrapping="Wrap" Foreground="#9E2929"/>
                         <TextBlock Text="{DynamicResource Text.WidgetAppearance}" Style="{StaticResource SetupHeading}"/>
                         <StackPanel Orientation="Horizontal" Margin="0,12,0,12">
                             <TextBlock Text="{DynamicResource Text.FontSize}" VerticalAlignment="Center" Margin="0,0,16,0"/>

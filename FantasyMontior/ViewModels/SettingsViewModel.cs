@@ -19,6 +19,46 @@ public sealed class SettingsViewModel : ObservableObject
     private double _fontSize = 16;
     private double _transparency;
     private bool _isLocked = true;
+    private IAutoStartService? _autoStartService;
+    private bool _autoStart;
+    private bool _autoStartBusy;
+    private string _autoStartError = "";
+    public bool CanChangeAutoStart => _autoStartService is not null && !_autoStartBusy;
+    public string AutoStartError => _autoStartError.Length == 0 ? "" : Localization.F("Could not update automatic startup: {0}", _autoStartError);
+    public bool AutoStart
+    {
+        get => _autoStart;
+        set { if (CanChangeAutoStart && value != _autoStart) _ = SetAutoStartAsync(value); }
+    }
+
+    public async Task InitializeAutoStartAsync(IAutoStartService service)
+    {
+        _autoStartService = service;
+        SetAutoStartBusy(true);
+        try { _autoStart = await service.IsEnabledAsync(); _autoStartError = ""; }
+        catch (Exception ex) { _autoStartError = ex.Message; }
+        finally { Changed(nameof(AutoStart)); Changed(nameof(AutoStartError)); SetAutoStartBusy(false); }
+    }
+
+    public async Task SetAutoStartAsync(bool enabled)
+    {
+        if (!CanChangeAutoStart) return;
+        SetAutoStartBusy(true);
+        try
+        {
+            await _autoStartService!.SetEnabledAsync(enabled);
+            _autoStart = enabled;
+            _autoStartError = "";
+        }
+        catch (Exception ex) { _autoStartError = ex.Message; }
+        finally { Changed(nameof(AutoStart)); Changed(nameof(AutoStartError)); SetAutoStartBusy(false); }
+    }
+
+    private void SetAutoStartBusy(bool value)
+    {
+        _autoStartBusy = value;
+        Changed(nameof(CanChangeAutoStart));
+    }
     public WidgetPosition? Position { get; private set; }
     public Dictionary<string, DeviceSources> Sources { get; } = new(StringComparer.Ordinal);
     private string _saveError = "";
