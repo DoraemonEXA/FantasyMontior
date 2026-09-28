@@ -1,0 +1,84 @@
+<UserControl x:Class="FantasyMontior.TrendsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:FantasyMontior"
+             IsVisibleChanged="OnVisibilityChanged" DataContextChanged="OnDataContextChanged" Loaded="OnLoaded" Unloaded="OnUnloaded">
+    <UserControl.Resources>
+        <Style x:Key="PlotButton" TargetType="Button">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Surface" Background="{TemplateBinding Background}" CornerRadius="4" BorderThickness="1" BorderBrush="Transparent" Padding="3">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="#F2F7F4"/></Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="#348258"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="14">
+        <StackPanel>
+            <TextBlock Text="{DynamicResource Text.TrendsHeading}" FontSize="22" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding Status}" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,5,0,0"/>
+            <TextBlock Text="{DynamicResource Text.TrendsHelp}" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,5,0,14"/>
+            <ItemsControl x:Name="DeviceCards" ItemsSource="{Binding Devices}" SizeChanged="OnCardsSizeChanged" HorizontalContentAlignment="Stretch">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Width="{Binding Tag, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Padding="10" Margin="0,0,10,12"
+                                Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8">
+                            <StackPanel>
+                                <TextBlock Text="{Binding Row.Label}" FontSize="17" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding HardwareName}" Foreground="{StaticResource MutedBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding HardwareName}" Margin="0,3,0,10"/>
+                                <Button Style="{StaticResource PlotButton}" Tag="{Binding Usage}" Click="OnSelectPlot" AutomationProperties.Name="{DynamicResource Text.UsageTrend}">
+                                    <StackPanel>
+                                        <DockPanel>
+                                            <TextBlock Text="{Binding Row.Usage}" DockPanel.Dock="Right" FontWeight="SemiBold" Foreground="#348258"/>
+                                            <TextBlock Text="{DynamicResource Text.Usage}"/>
+                                        </DockPanel>
+                                        <local:SensorTrendChart Data="{Binding Usage.Data}" IsCompact="True" Height="112" AutomationProperties.Name="{DynamicResource Text.UsageTrend}"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource PlotButton}" Tag="{Binding Temperature}" Click="OnSelectPlot" Margin="0,7,0,0"
+                                        Visibility="{Binding Row.HasTemperature, Converter={StaticResource BooleanToVisibility}}" AutomationProperties.Name="{DynamicResource Text.TemperatureTrend}">
+                                    <StackPanel>
+                                        <DockPanel>
+                                            <TextBlock Text="{Binding Row.Temperature}" DockPanel.Dock="Right" FontWeight="SemiBold" Foreground="#B87718"/>
+                                            <TextBlock Text="{DynamicResource Text.Temperature}"/>
+                                        </DockPanel>
+                                        <local:SensorTrendChart Data="{Binding Temperature.Data}" IsCompact="True" Height="112" AutomationProperties.Name="{DynamicResource Text.TemperatureTrend}"/>
+                                    </StackPanel>
+                                </Button>
+                                <TextBlock Text="{Binding Row.State}" Foreground="#975700" Margin="3,3,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Border x:Name="DetailPanel" Style="{StaticResource Panel}" Margin="0,4,0,0">
+                <StackPanel>
+                    <TextBlock Text="{DynamicResource Text.ExploreSensor}" FontSize="18" FontWeight="SemiBold"/>
+                    <TextBlock Text="{DynamicResource Text.SensorSearch}" Foreground="{StaticResource MutedBrush}" Margin="0,10,0,4"/>
+                    <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}" Padding="8,6" AutomationProperties.Name="{DynamicResource Text.SensorSearch}"/>
+                    <ComboBox ItemsSource="{Binding SensorView}" SelectedItem="{Binding SelectedSensor}" DisplayMemberPath="Label"
+                              Margin="0,7,0,14" Padding="6" MaxDropDownHeight="280" HorizontalContentAlignment="Stretch"
+                              AutomationProperties.Name="{DynamicResource Text.ChooseSensor}"/>
+                    <TextBlock Text="{Binding DetailTitle}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                        <TextBlock Text="{DynamicResource Text.Max24h}" Foreground="{StaticResource MutedBrush}" Margin="0,0,8,0"/>
+                        <TextBlock Text="{Binding DetailMaximum}" FontWeight="SemiBold"/>
+                    </StackPanel>
+                    <local:SensorTrendChart Data="{Binding Detail.Data}" Height="260" Margin="0,10,0,0" AutomationProperties.Name="{Binding DetailTitle}"/>
+                    <TextBlock Text="{DynamicResource Text.ChartLegend}" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -27,3 +27,5 @@ TestResults/
 snapshot.json
 summary.json
 settings.json
+history-v*.json.gz
+history-v*.json.gz.tmp

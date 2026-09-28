@@ -31,7 +31,7 @@ public partial class MainWindow : Window
         DataContext = _viewModel;
     }
 
-    public void OpenSettings() => MainTabs.SelectedIndex = 3;
+    public void OpenSettings() => SettingsTab.IsSelected = true;
     private void OnLoaded(object sender, RoutedEventArgs e) => _session.Start();
 
     private void OnRetry(object sender, RoutedEventArgs e)

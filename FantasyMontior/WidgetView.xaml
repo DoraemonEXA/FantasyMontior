@@ -63,6 +63,12 @@
                                         <TextBlock Grid.Column="1" Text="{Binding Usage}" HorizontalAlignment="Right" Opacity="{Binding ReadingOpacity}" Style="{StaticResource StatusText}"/>
                                         <TextBlock Grid.Column="2" Text="{Binding Temperature}" HorizontalAlignment="Right" Opacity="{Binding ReadingOpacity}" Style="{StaticResource StatusText}"/>
                                     </Grid>
+                                    <Grid Margin="0,2,0,0" TextBlock.FontSize="11" TextBlock.Foreground="#CBD7CD">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="72"/><ColumnDefinition Width="76"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="{DynamicResource Text.Max24h}"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding UsageMaximum}" HorizontalAlignment="Right"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding TemperatureMaximum}" HorizontalAlignment="Right"/>
+                                    </Grid>
                                     <Grid Height="8" Margin="0,3,0,0">
                                         <Border Background="#F008100B" BorderBrush="{StaticResource Silver}" BorderThickness="1"/>
                                         <local:AnimatedUsageBar TargetValue="{Binding Fill, Mode=OneWay}" IsLive="{Binding IsUsageLive}" Maximum="100" Margin="1" Height="6" Opacity="{Binding ReadingOpacity}"

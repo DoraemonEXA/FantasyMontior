@@ -12,6 +12,22 @@ Directory.CreateDirectory(args[1]);
 var runtime = RuntimeInfo.Detect();
 Console.WriteLine(JsonSerializer.Serialize(runtime));
 await using var monitor = new MonitoringService();
+var historyDirectory = Path.Combine(args[1], "history-" + DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N")[..6]);
+var historyStore = new FileSensorHistoryStore(historyDirectory);
+await using var history = new SensorHistoryService(historyStore);
+await history.StartAsync();
+var observedPeaks = new Dictionary<SensorSeriesId, double>();
+monitor.SnapshotPublished += history.Record;
+void ObservePeak(MonitoringSnapshot snapshot, TimeSpan interval)
+{
+    foreach (var sensor in snapshot.Sensors)
+        if (sensor.Error is null && sensor.LastSuccess == snapshot.CapturedAt && sensor.Value is { } value && double.IsFinite(value))
+        {
+            var id = SensorSeriesId.From(sensor);
+            observedPeaks[id] = observedPeaks.TryGetValue(id, out var peak) ? Math.Max(peak, value) : value;
+        }
+}
+monitor.SnapshotPublished += ObservePeak;
 monitor.Start();
 var clock = Stopwatch.StartNew();
 var process = Process.GetCurrentProcess();
@@ -58,12 +74,21 @@ while (clock.Elapsed.TotalSeconds < seconds)
 var final = monitor.Latest;
 var close = Stopwatch.StartNew();
 await monitor.DisposeAsync();
+monitor.SnapshotPublished -= history.Record;
+monitor.SnapshotPublished -= ObservePeak;
+await history.DisposeAsync();
 close.Stop();
+await using var restoredHistory = new SensorHistoryService(historyStore);
+await restoredHistory.StartAsync();
+var historyVerified = history.Status.SaveError is null && restoredHistory.Status.LoadError is null &&
+    observedPeaks.All(p => history.GetMaximum(p.Key) == p.Value && restoredHistory.GetMaximum(p.Key) == p.Value);
 await File.WriteAllTextAsync(Path.Combine(args[1], "summary.json"), JsonSerializer.Serialize(new
 {
     DurationSeconds = clock.Elapsed.TotalSeconds, Updates = updates, MaxWorkingSetBytes = maxWorkingSet,
     MaxPrivateBytes = maxPrivateBytes, ShutdownMilliseconds = close.Elapsed.TotalMilliseconds,
     Runtime = runtime, Samples = samples, Errors = errors,
+    HistorySensorsVerified = observedPeaks.Count, HistoryRestored = historyVerified,
+    HistoryError = history.Status.SaveError ?? restoredHistory.Status.LoadError,
     SensorRanges = ranges.Select(pair => new { Id = pair.Key, pair.Value.Min, pair.Value.Max, Samples = pair.Value.Count }),
     RequiredHardware = final.Hardware.Where(h => h.IsCpuOrGpu).Select(h => new
     {
@@ -72,4 +97,5 @@ await File.WriteAllTextAsync(Path.Combine(args[1], "summary.json"), JsonSerializ
     })
 }, new JsonSerializerOptions { WriteIndented = true }));
 Console.WriteLine($"Probe finished. {updates} snapshots observed; shutdown {close.Elapsed.TotalMilliseconds:0} ms.");
-return final.Sensors.Any(s => s.StateAt(DateTimeOffset.UtcNow) == ReadingState.Live) ? 0 : 1;
+Console.WriteLine($"History: {observedPeaks.Count} sensor peaks compared and restored; verified: {historyVerified}.");
+return historyVerified && final.Sensors.Any(s => s.StateAt(DateTimeOffset.UtcNow) == ReadingState.Live) ? 0 : 1;

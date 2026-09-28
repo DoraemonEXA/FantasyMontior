@@ -9,6 +9,9 @@ public sealed record SourceChoice(string Key, string Label);
 public sealed class WidgetRow : ObservableObject
 {
     private readonly SettingsViewModel _settings;
+    private readonly SensorHistoryService? _history;
+    private string _usageMaximum = "—", _temperatureMaximum = "—";
+    private SensorSeriesId? _usageHistoryId, _temperatureHistoryId;
     private string _label = "", _usage = "—", _temperature = "—", _detail = "", _state = "";
     private double _fill, _readingOpacity = 1;
     private Thickness _indent;
@@ -20,6 +23,10 @@ public sealed class WidgetRow : ObservableObject
     public string Label { get => _label; private set => Set(ref _label, value); }
     public string Usage { get => _usage; private set => Set(ref _usage, value); }
     public string Temperature { get => _temperature; private set => Set(ref _temperature, value); }
+    public string UsageMaximum { get => _usageMaximum; private set => Set(ref _usageMaximum, value); }
+    public string TemperatureMaximum { get => _temperatureMaximum; private set => Set(ref _temperatureMaximum, value); }
+    public SensorSeriesId? UsageHistoryId { get => _usageHistoryId; private set => Set(ref _usageHistoryId, value); }
+    public SensorSeriesId? TemperatureHistoryId { get => _temperatureHistoryId; private set => Set(ref _temperatureHistoryId, value); }
     public string Detail { get => _detail; private set => Set(ref _detail, value); }
     public string State { get => _state; private set => Set(ref _state, value); }
     public double Fill { get => _fill; private set => Set(ref _fill, value); }
@@ -40,7 +47,8 @@ public sealed class WidgetRow : ObservableObject
     }
     private DeviceSources Source => _settings.Sources.GetValueOrDefault(Id) ?? new(Id, Kind);
 
-    public WidgetRow(string id, string kind, SettingsViewModel settings) { Id = id; Kind = kind; _settings = settings; }
+    public WidgetRow(string id, string kind, SettingsViewModel settings, SensorHistoryService? history = null)
+    { Id = id; Kind = kind; _settings = settings; _history = history; }
 
     public void Apply(MonitoringSnapshot snapshot, DateTimeOffset now, string label, int index)
     {
@@ -48,6 +56,10 @@ public sealed class WidgetRow : ObservableObject
         Indent = new Thickness(Math.Min(index, 4) * 9, 0, (4 - Math.Min(index, 4)) * 9, 3);
         var usage = WidgetSources.Resolve(snapshot, Id, Kind, "Load", Source.UsageKey);
         var temperature = HasTemperature ? WidgetSources.Resolve(snapshot, Id, Kind, "Temperature", Source.TemperatureKey) : null;
+        UsageHistoryId = HistoryIdentity(usage, snapshot, "Load", UsageKey);
+        TemperatureHistoryId = HasTemperature ? HistoryIdentity(temperature, snapshot, "Temperature", TemperatureKey) : null;
+        UsageMaximum = FormatMaximum(_history?.GetMaximum(UsageHistoryId), "%");
+        TemperatureMaximum = HasTemperature ? FormatMaximum(_history?.GetMaximum(TemperatureHistoryId), "°C") : "";
         var staleAfter = TimeSpan.FromSeconds(_settings.SampleSeconds * 3);
         var usageState = usage?.StateAt(now, staleAfter) ?? ReadingState.Unavailable;
         var temperatureState = temperature?.StateAt(now, staleAfter) ?? ReadingState.Unavailable;
@@ -71,6 +83,22 @@ public sealed class WidgetRow : ObservableObject
         Changed(nameof(TemperatureKey));
     }
 
+    private SensorSeriesId? HistoryIdentity(SensorReading? reading, MonitoringSnapshot snapshot, string kind, string selected)
+    {
+        if (reading is not null) return SensorSeriesId.From(reading);
+        if (_history is null) return null;
+        // Resolve metadata only: historical source selection must never establish a current live reading.
+        // If live automatic candidates exist but cannot be resolved, keep that ambiguity visible.
+        if (selected.Length == 0 && WidgetSources.Candidates(snapshot, Id, kind).Length > 0) return null;
+        var candidates = _history.Sensors.Where(s => (s.Id.HardwareId == Id || s.RootHardwareId == Id) &&
+            s.Id.Kind == kind && s.Id.Unit == (kind == "Load" ? "%" : "°C"))
+            .Select(s => new SensorReading(s.Id.SensorKey, s.Id.HardwareId, s.Name, s.Id.Kind, s.Id.Unit, null, null)).ToArray();
+        var historical = WidgetSources.ResolveCandidates(candidates, Kind, kind, selected.Length == 0 ? null : selected);
+        return historical is null ? null : SensorSeriesId.From(historical);
+    }
+
+    private static string FormatMaximum(double? value, string unit) => value is { } number ? $"{number:0}{unit}" : "—";
+
     private static string Format(SensorReading? reading, string unit) => reading?.Value is { } value && double.IsFinite(value)
         ? $"{value:0}{unit}" : "—";
     private static string Describe(SensorReading? reading) => reading is null ? Localization.T("Choose a sensor in Settings")
@@ -93,9 +121,10 @@ public sealed class WidgetRow : ObservableObject
 
 public sealed class WidgetViewModel : ObservableObject
 {
+    private readonly SensorHistoryService? _history;
     public SettingsViewModel Settings { get; }
     public ObservableCollection<WidgetRow> Rows { get; } = [];
-    public WidgetViewModel(SettingsViewModel settings) => Settings = settings;
+    public WidgetViewModel(SettingsViewModel settings, SensorHistoryService? history = null) { Settings = settings; _history = history; }
 
     public void Apply(MonitoringSnapshot snapshot, DateTimeOffset now)
     {
@@ -112,7 +141,7 @@ public sealed class WidgetViewModel : ObservableObject
         {
             var (id, device) = ordered[i];
             var row = Rows.FirstOrDefault(r => r.Id == id);
-            if (row is null) { row = new(id, device.Kind, Settings); Rows.Insert(i, row); }
+            if (row is null) { row = new(id, device.Kind, Settings, _history); Rows.Insert(i, row); }
             else if (Rows.IndexOf(row) != i) Rows.Move(Rows.IndexOf(row), i);
             var category = device.Kind == "Cpu" ? "CPU" : device.Kind == "Memory" ? "RAM" : "GPU";
             var siblings = ordered.Where(p => (p.Value.Kind == "Cpu" ? "CPU" : p.Value.Kind == "Memory" ? "RAM" : "GPU") == category).ToArray();

@@ -40,6 +40,9 @@ public sealed class WidgetSourcesTests
         Assert.Equal(100d, WidgetSources.Resolve(ambiguous, "cpu", "Cpu", "Load", "core")!.Value);
         var unknown = Snapshot with { Sensors = [new("core", "cpu", "CPU Core #1", "Load", "%", 100, Now)] };
         Assert.Null(WidgetSources.Resolve(unknown, "cpu", "Cpu", "Load", null));
+        var repeatedKey = Snapshot with { Sensors = [.. Snapshot.Sensors,
+            new("total", "child", "CPU Total", "Load", "%", 10, Now)] };
+        Assert.Null(WidgetSources.Resolve(repeatedKey, "cpu", "Cpu", "Load", "total"));
     }
 
     [Fact]

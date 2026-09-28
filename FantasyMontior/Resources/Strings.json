@@ -1,4 +1,23 @@
 {
+  "Max24h": ["Max 24h", "24小时峰值"],
+  "Trends": ["Trends", "趋势"],
+  "TrendsHeading": ["Your last 24 hours", "最近24小时"],
+  "TrendsHelp": ["Select a chart to explore its sensor. Blank periods mean no readings were recorded.", "点击图表查看对应传感器。空白时段表示没有记录到读数。"],
+  "Usage": ["Usage", "使用率"],
+  "UsageTrend": ["Explore usage trend", "查看使用率趋势"],
+  "TemperatureTrend": ["Explore temperature trend", "查看温度趋势"],
+  "ExploreSensor": ["Explore a sensor", "查看传感器趋势"],
+  "SensorSearch": ["Filter by hardware, sensor, type, or identifier", "按硬件、传感器、类型或标识符筛选"],
+  "ChooseSensor": ["Choose a sensor", "选择传感器"],
+  "ChartLegend": ["Line: minute average · Shading: recorded min–max · Hover for details. Recently disconnected sensors remain available here while their history is retained.", "线条：每分钟平均值 · 阴影：记录的最小值至最大值 · 悬停查看详情。近期断开的传感器在历史记录保留期间仍可查看。"],
+  "Choose a sensor": ["Choose a sensor", "选择传感器"],
+  "No recorded readings yet": ["No recorded readings yet", "尚无读数记录"],
+  "Loading saved history…": ["Loading saved history…", "正在加载历史记录…"],
+  "Recording · Last 24 hours · 1-minute averages and ranges": ["Recording · Last 24 hours · 1-minute averages and ranges", "正在记录 · 最近24小时 · 每分钟平均值与范围"],
+  "Saved history could not be loaded: {0}": ["Saved history could not be loaded: {0}", "无法加载历史记录：{0}"],
+  "History is recording in memory; saving failed: {0}": ["History is recording in memory; saving failed: {0}", "历史记录暂存于内存，保存失败：{0}"],
+  "Average: {0} · Min: {1} · Max: {2}": ["Average: {0} · Min: {1} · Max: {2}", "平均值：{0} · 最小值：{1} · 最大值：{2}"],
+  "{0} readings · {1:HH:mm:ss}–{2:HH:mm:ss}": ["{0} readings · {1:HH:mm:ss}–{2:HH:mm:ss}", "{0}个读数 · {1:HH:mm:ss}–{2:HH:mm:ss}"],
   "AutoStart": ["Auto start app when I sign into Windows", "登录 Windows 时自动启动应用"],
   "AutoStartHelp": ["Starts with administrator access about 30 seconds after sign-in for the account running this app. Turn this off before moving or deleting the app.", "为运行此应用的账户在登录约 30 秒后以管理员权限启动。移动或删除应用前，请关闭此选项。"],
   "Could not update automatic startup: {0}": ["Could not update automatic startup: {0}", "无法更新自动启动设置：{0}"],
@@ -331,16 +350,16 @@
     "部分读数可用"
   ],
   "WindowTitle": [
-    "FantasyMontior — Sensor validation",
-    "FantasyMontior — 传感器验证"
+    "FantasyMontior — Hardware monitor",
+    "FantasyMontior — 硬件监控"
   ],
   "ValidationHeading": [
-    "Sensor validation",
-    "传感器验证"
+    "Hardware monitor",
+    "硬件监控"
   ],
   "DiagnosticsSubtitle": [
-    "FantasyMontior · Live hardware diagnostics",
-    "FantasyMontior · 实时硬件诊断"
+    "FantasyMontior · Live readings and sensor history",
+    "FantasyMontior · 实时读数与传感器历史"
   ],
   "RetryDiscovery": [
     "Retry discovery",

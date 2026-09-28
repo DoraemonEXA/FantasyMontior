@@ -94,6 +94,7 @@ public sealed class MonitorViewModel : ObservableObject
 
     public SettingsViewModel Settings { get; }
     public WidgetViewModel? Widget { get; internal set; }
+    public TrendsViewModel? Trends { get; internal set; }
     public TimeSpan StaleAfter => TimeSpan.FromSeconds(Settings.SampleSeconds * 3);
     public void RefreshLanguage()
     {

@@ -46,6 +46,7 @@ public static class Program
                 if (args.Length == 0)
                 {
                     VerifyPresentation();
+                    await TrendsChecks.VerifyAsync(Path.Combine(FindRepository(), "artifacts", "ui"));
                     await AutoStartChecks.VerifyAsync(Path.Combine(FindRepository(), "artifacts", "ui", "autostart-test.json"));
                     await WidgetChecks.VerifyAsync(Path.Combine(FindRepository(), "artifacts", "ui"));
                 }
@@ -105,7 +106,7 @@ public static class Program
         Assert.Equal("Unavailable", vm.Sensors.Single(s => s.Id == "cpu/temp").State);
         vm.Filter = "";
 
-        var window = new MainWindow(new SettingsViewModel(settingsPath));
+        var window = new MainWindow(new MonitoringSession(new SettingsViewModel(settingsPath), history: new SensorHistoryService()));
         var root = (FrameworkElement)window.Content;
         var background = window.Background;
         var foreground = window.Foreground;
@@ -127,10 +128,11 @@ public static class Program
         root.DataContext = loading;
         Assert.True(loading.IsLoading);
         Assert.False(loading.CanRetry);
+        var loadingTabs = Descendants<TabControl>(root).Single();
+        SelectTab(loadingTabs, "PrimarySensorsTab");
         Render(root, 1080, 740, 1, Path.Combine(output, "loading-en.png"));
         Assert.True(Descendants<ProgressBar>(root).Single().IsIndeterminate);
-        var loadingTabs = Descendants<TabControl>(root).Single();
-        loadingTabs.SelectedIndex = 1;
+        SelectTab(loadingTabs, "AllSensorsTab");
         settings.Language = "zh-CN";
         Render(root, 760, 600, 1.5, Path.Combine(output, "loading-zh-minimum-150.png"));
         Assert.True(loading.IsLoading);
@@ -149,7 +151,7 @@ public static class Program
         Assert.False(loading.IsLoading);
         Assert.False(loading.CanRetry);
         settings.Language = "en";
-        loadingTabs.SelectedIndex = 0;
+        SelectTab(loadingTabs, "PrimarySensorsTab");
         root.DataContext = vm;
         vm.Notice = "TEST DATA — unavailable and stale state fixture. Not real measurements.";
         Render(root, 1080, 740, 1, Path.Combine(output, "states-fixture.png"));
@@ -175,7 +177,7 @@ public static class Program
         if (lastDevice is not null) lastDevice.IsExpanded = true;
         Render(root, 760, 600, 1.5, Path.Combine(output, "gpu-minimum-150.png"));
 
-        tabs.SelectedIndex = 1;
+        SelectTab(tabs, "AllSensorsTab");
         Render(root, 1080, 740, 1, Path.Combine(output, "all-sensors.png"));
         var grid = Descendants<DataGrid>(root).Single();
         Assert.Same(vm.SensorView, grid.ItemsSource);
@@ -196,7 +198,7 @@ public static class Program
         root.UpdateLayout();
         Assert.All(vm.SensorView.Cast<SensorRow>(), row => Assert.Equal("Temperature", row.Kind));
         Render(root, 760, 600, 1.5, Path.Combine(output, "filtered-minimum-150.png"));
-        tabs.SelectedIndex = 2;
+        SelectTab(tabs, "SetupTab");
         Render(root, 1080, 740, 1, Path.Combine(output, "pawnio-setup.png"));
         Render(root, 760, 600, 1.5, Path.Combine(output, "pawnio-setup-minimum-150.png"));
         var setupScroll = Descendants<ScrollViewer>(tabs).Single();
@@ -205,7 +207,7 @@ public static class Program
         root.UpdateLayout();
         Assert.True(setupScroll.VerticalOffset > 0);
         Render(root, 760, 600, 1.5, Path.Combine(output, "pawnio-setup-bottom-150.png"));
-        tabs.SelectedIndex = 3;
+        SelectTab(tabs, "SettingsTab");
         Render(root, 1080, 740, 1, Path.Combine(output, "settings-en.png"));
         var combos = Descendants<ComboBox>(tabs).ToArray();
         Assert.Equal(2, combos.Length);
@@ -215,7 +217,7 @@ public static class Program
         root.UpdateLayout();
         Assert.Equal("zh-CN", settings.Language);
         Assert.Equal(5, settings.SampleSeconds);
-        Assert.Equal("设置", ((TabItem)tabs.Items[3]).Header);
+        Assert.Equal("设置", tabs.Items.OfType<TabItem>().Single(t => t.Name == "SettingsTab").Header);
         var reloaded = new SettingsViewModel(settingsPath);
         Assert.Equal("zh-CN", reloaded.Language);
         Assert.Equal(5, reloaded.SampleSeconds);
@@ -231,19 +233,21 @@ public static class Program
         root.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
         Descendants<ScrollViewer>(tabs).First().ScrollToVerticalOffset(130);
         Render(root, 760, 600, 1.5, Path.Combine(output, "settings-autostart-zh-150.png"));
-        tabs.SelectedIndex = 0;
+        SelectTab(tabs, "PrimarySensorsTab");
         Render(root, 760, 600, 1.5, Path.Combine(output, "sensors-zh-minimum-150.png"));
-        tabs.SelectedIndex = 2;
+        SelectTab(tabs, "SetupTab");
         Render(root, 760, 600, 1.5, Path.Combine(output, "setup-zh-minimum-150.png"));
         settings.Language = "en";
         root.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
-        Assert.Equal("Settings", ((TabItem)tabs.Items[3]).Header);
+        Assert.Equal("Settings", tabs.Items.OfType<TabItem>().Single(t => t.Name == "SettingsTab").Header);
         File.WriteAllText(settingsPath, "invalid json");
         Assert.Equal(1, new SettingsViewModel(settingsPath).SampleSeconds);
         File.Delete(settingsPath);
         host.Close();
         window.Close();
     }
+
+    private static void SelectTab(TabControl tabs, string name) => tabs.Items.OfType<TabItem>().Single(t => t.Name == name).IsSelected = true;
 
     private static string FindRepository()
     {

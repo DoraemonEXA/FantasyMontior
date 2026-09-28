@@ -17,9 +17,16 @@ public static class WidgetSources
 
     public static SensorReading? Resolve(MonitoringSnapshot snapshot, string deviceId, string hardwareKind,
         string sensorKind, string? selectedKey)
+        => ResolveCandidates(Candidates(snapshot, deviceId, sensorKind), hardwareKind, sensorKind, selectedKey);
+
+    public static SensorReading? ResolveCandidates(IReadOnlyList<SensorReading> candidates, string hardwareKind,
+        string sensorKind, string? selectedKey)
     {
-        var candidates = Candidates(snapshot, deviceId, sensorKind);
-        if (selectedKey is not null) return candidates.SingleOrDefault(s => s.Key == selectedKey);
+        if (selectedKey is not null)
+        {
+            var selected = candidates.Where(s => s.Key == selectedKey).Take(2).ToArray();
+            return selected.Length == 1 ? selected[0] : null;
+        }
         // Source labels corroborate the semantic role within an identified device and sensor type.
         // Unknown and ambiguous roles require an explicit selection rather than a core average.
         string[] roles = (hardwareKind, sensorKind) switch

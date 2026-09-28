@@ -36,13 +36,15 @@ PawnIO still requires separate installation, and the app still requests administ
 - The widget attaches to Explorer’s desktop icon host using C# P/Invoke, with no additional dependencies. It is designed to remain clickable on the desktop and visible after **Show Desktop / Win+D**, below normal applications. It is hidden from the taskbar and has no always-on-top option. Old settings files remain readable; their obsolete `AlwaysOnTop` value is ignored. Closing diagnostics leaves monitoring running; closing the widget hides it. Use **Exit** to release hardware and remove the tray icon.
 - If desktop attachment fails or Explorer replaces its host, the widget stays hidden while monitoring and tray controls continue. Open **Diagnostics** for the status and choose **Retry desktop attachment** from the tray when ready; recovery is manual. Windows 10 1607+ and compatible Explorer/WPF DPI awareness are required for attachment. Diagnostics and tray remain available when attachment is unsupported.
 - Font size defaults to 16 and adjusts from 12–28 in Settings, scaling the composition together. Widget transparency adjusts from 0–80%, applies immediately to the entire widget, and is saved automatically (default 0%, preserving the original appearance). The bottom notice footer is removed; sensor details remain available in Diagnostics. Position is saved relative to its monitor; unavailable monitors fall back to the primary work area. A scrollable viewport handles limited desktop space.
-- CPU/GPU rows show utilization and temperature; RAM shows physical memory utilization. Bars represent utilization, not remaining capacity or temperature severity. Multiple CPU/GPU devices remain separate.
+- CPU/GPU rows show utilization and temperature; RAM shows physical memory utilization. A smaller **Max 24h** line shows the highest recorded value of each selected sensor during the rolling last 24 hours, including saved history from earlier runs. Peaks expire at their sample timestamps; they are not hardware limits. Bars represent current utilization, not remaining capacity or temperature severity. Multiple CPU/GPU devices remain separate.
 - **Widget sensors** in Settings chooses usage and temperature sources. Automatic selection recognizes total/core/package roles within the identified device. Unknown or ambiguous roles stay unavailable until explicitly selected. Saved sources never silently switch when disconnected.
 - `—` means unavailable; stale values retain their last reading with a visible stale label and muted appearance. Full device/source names are available in Diagnostics. Raw readings and prerequisite guidance remain in Diagnostics.
 - SVG assets live in `FantasyMontior/Resources/Icons/`; their restricted path-only loader creates cached WPF drawings. Panel textures are static vector gradients. Usage-bar animations run only while the fill is active and live.
 
 ## Inspect readings
 
+- **Trends** opens by default. CPU, GPU, and RAM cards follow the widget's selected sources, with separate usage and temperature charts. Click a chart to inspect its sensor below, or filter the picker by hardware, sensor name, type, or identifier. Sensors that disconnect remain selectable while their history is retained.
+- Charts show a rolling 24-hour timeline with **one-minute sample averages** and a shaded **minimum–maximum range**. Hover for the recorded values, sample count, and observation times. The active minute updates as readings arrive. Chart summaries have minute resolution; the widget's maximum uses exact sample timestamps. Percentages use a 0–100% axis, and other units scale to the recorded range. Gaps represent missing collection, sleep, app downtime, or failed readings; they are never filled with zeroes or interpolated across.
 - **CPU & GPU:** expand or collapse each device. Temperatures appear first, followed by the reported load sensors. Source names distinguish package/core/hotspot temperatures and different utilization engines; the app does not synthesize an aggregate.
 - **All sensors:** inspect CPU, GPU, memory, motherboard, storage, network, and controller readings. Filter by device, name, type, or identifier. Click column headers to sort; Value sorts numerically. Row identities, selection, and scroll remain stable during ordinary refreshes.
 - **Live** means a finite value was returned. It does **not** establish accuracy. Valid zero values are preserved.
@@ -52,6 +54,14 @@ PawnIO still requires separate installation, and the app still requests administ
 - **Copy diagnostics** copies JSON with environment/prerequisite information, the current immutable snapshot, source identifiers, units, timestamps, per-reading states, and errors.
 
 The library can return duplicate sensor identifiers, including different GPU load sensors sharing one identifier. The app preserves that original identifier and creates a separate internal identity using type and source label **only for collisions**. It reports the collision rather than silently merging readings. Indistinguishable duplicates are reported as a collection failure.
+
+## Recorded history
+
+History starts automatically with the shared monitoring session and includes all reported sensors, even while the main window is closed or the widget is hidden. Only new, finite, successful readings contribute; stale values are not sampled again. A historical maximum can remain visible when a current reading becomes unavailable. `—` means there is no recorded maximum for the resolved source. Changing sources changes the maximum and chart to that sensor's own history.
+
+Versioned, compressed history is kept locally in `%LOCALAPPDATA%\FantasyMontior\history\history-v1.json.gz`, separately from settings. It contains sensor/device identities, source labels, UTC observation times, minute summaries, and timestamped peak candidates. The UI displays local time. Expired history is pruned, checkpoints are written in the background once per minute with atomic replacement, and Exit flushes pending data. An abnormal exit may lose the most recent uncheckpointed minute. Nothing is collected while the app is stopped.
+
+Invalid saved history is rejected without stopping monitoring. If saving fails, collection continues in memory and the Trends page explains the error. Restored history never establishes that a sensor is currently live or accurate. Chart rendering pauses when its tab/window is hidden, minimized, or closed; collection continues at the configured interval. The chart controls use native WPF vector drawing with no additional package dependency.
 
 ## Settings and language
 
@@ -78,7 +88,7 @@ Do not accept an all-zero CPU temperature as proof of retrieval merely because t
 
 ## Development and automated checks
 
-- `FantasyMontior.Core`: hardware adapter, recursive collection, immutable snapshots, serialized polling, and diagnostics. This project has no WPF dependency.
+- `FantasyMontior.Core`: hardware adapter, recursive collection, immutable snapshots, serialized polling, minute history and exact rolling peaks, persistence, and diagnostics. This project has no WPF dependency.
 - `FantasyMontior`: static widget, tray, diagnostic window, settings, SVG assets, and an application-owned monitoring session shared by all windows.
 - `FantasyMontior.Tests`: hardware-independent collection/lifecycle tests, with no WPF runtime dependency.
 - `FantasyMontior.UiChecks`: standalone WPF presentation checks with a main-thread dispatcher and explicit process exit result.
@@ -91,7 +101,7 @@ dotnet build FantasyMontior.sln -c Release --no-restore
 dotnet run --project FantasyMontior.Probe -c Release --no-build -- 600 artifacts/verification
 ```
 
-The probe accepts a duration of 1–3600 seconds and an output directory. It writes `snapshot.json` throughout the run and `summary.json` after cleanup, including sensor ranges, process resource samples, errors, and shutdown duration. Exit code 0 means at least one live sensor was observed at completion, **not** that all required CPU/GPU metrics passed validation.
+The probe accepts a duration of 1–3600 seconds and an output directory. It writes `snapshot.json` throughout the run and `summary.json` after cleanup, including sensor ranges, process resource samples, errors, and shutdown duration. It records history in an isolated subdirectory and verifies that each recorded/restored peak matches an independent accumulator of published sensor readings. Exit code 0 means this history check passed and at least one live sensor was observed at completion, **not** that all required CPU/GPU metrics passed validation.
 
 The standalone UI runner renders actual controls into `artifacts/ui/`, checks filtering and selection/scroll retention, and exercises stale/unavailable states. If `artifacts/verification/snapshot.json` exists, it also renders that real capture; otherwise it uses explicitly named test devices. It prints `UI_CHECKS: PASS` only after validation and dispatcher shutdown; failures print exceptions and return nonzero. Rendered images are static layout evidence, not an interactive desktop session or a physical DPI transition test. Generated artifacts are ignored by Git.
 
@@ -105,7 +115,9 @@ dotnet run --project FantasyMontior.UiChecks --no-restore -- --widget-probe 60 a
 
 The normal UI runner uses labeled fixtures to check both languages, font sizes and rendering scales, dark/light/patterned backgrounds, missing/stale readings, settings persistence, usage-bar animation and cleanup, and shared monitoring lifetime. Controlled offscreen HWND fixtures cover desktop attachment, coordinate conversion, explicit retry, host destruction, widget recreation, and dragging when mouse capture or subsequent messages are lost.
 
-The optional widget probe opens the real widget and tray at the runner's existing privileges. It requires desktop attachment throughout the capture and writes snapshots, resource measurements, and a labeled hardware image to the output directory. It also checks shared-backend lifetime and cleanup. A successful probe does not establish sensor accuracy or manual interaction acceptance.
+The optional widget probe opens the real widget and tray at the runner's existing privileges. It requires desktop attachment throughout the capture and writes snapshots, resource measurements, a labeled widget hardware image, and the real Trends view to the output directory. It compares recorded peaks against an independent accumulator of collection publications, reloads the saved history, and checks shared-backend lifetime and cleanup. Each probe run uses an isolated history directory under its output. A successful probe does not establish sensor accuracy or manual interaction acceptance.
+
+History tests cover minute aggregation, short peaks, exact 24-hour expiry, sensor identities, missing/stale readings, collection gaps, restart restoration, storage failures, and a simulated 25-hour run. The WPF runner adds labeled trend fixtures, source/picker selection, both languages, minimum window size, DPI scales, chart hit testing, hidden rendering, and continued collection after diagnostics close. Automated checks use isolated or in-memory history stores.
 
 Validate taskbar Show Desktop, Win+D, application overlap, physical mouse/tray/keyboard input, Explorer restart, and mixed-DPI monitor transitions separately in an interactive session. Scaled renders and offscreen fixtures do not establish those behaviors. Sensor accuracy and compatibility with other hardware and Windows versions require testing on those systems.
 

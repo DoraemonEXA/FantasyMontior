@@ -21,6 +21,8 @@ public sealed class MonitoringService : IAsyncDisposable
     }
 
     public MonitoringSnapshot Latest => Volatile.Read(ref _latest);
+    // Subscribers run on the collector worker and must only do bounded in-memory work.
+    public event Action<MonitoringSnapshot, TimeSpan>? SnapshotPublished;
     public TimeSpan Interval => TimeSpan.FromTicks(Interlocked.Read(ref _intervalTicks));
 
     public void SetInterval(TimeSpan interval)
@@ -55,7 +57,11 @@ public sealed class MonitoringService : IAsyncDisposable
         }
     }
 
-    private void Publish(MonitoringSnapshot snapshot) => Volatile.Write(ref _latest, snapshot);
+    private void Publish(MonitoringSnapshot snapshot)
+    {
+        SnapshotPublished?.Invoke(snapshot, Interval);
+        Volatile.Write(ref _latest, snapshot);
+    }
 
     private void PublishFailure(string message) => Publish(Latest with
     {

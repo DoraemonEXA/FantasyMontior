@@ -36,21 +36,34 @@ internal static class WidgetChecks
              new("gpu/temp", "gpu", "GPU Core", "Temperature", "°C", 62, now),
              new("ram/load", "/ram", "Memory", "Load", "%", 43, now),
              new("vram/load", "/vram", "Memory", "Load", "%", 99, now)], []);
-        var vm = new WidgetViewModel(settings);
+        var history = new SensorHistoryService();
+        var peakTime = now.AddMinutes(-1);
+        history.Record(snapshot with { CapturedAt = peakTime, Sensors = [.. snapshot.Sensors.Select(s => s with { LastSuccess = peakTime, Value = s.Value + 20 })] }, TimeSpan.FromSeconds(1));
+        history.Record(snapshot, TimeSpan.FromSeconds(1));
+        var vm = new WidgetViewModel(settings, history);
         vm.Apply(snapshot, now);
         Assert.Equal(3, vm.Rows.Count);
         await VerifyAnimationAsync(vm, snapshot, now, output);
         Assert.Equal(43, vm.Rows.Last().Fill);
         var cpu = vm.Rows.First();
+        Assert.Equal("47%", cpu.UsageMaximum);
+        Assert.Equal("74°C", cpu.TemperatureMaximum);
+        var offlineWidget = new WidgetViewModel(settings, history);
+        offlineWidget.Apply(MonitoringSnapshot.Empty, now);
+        Assert.Equal("47%", offlineWidget.Rows.First().UsageMaximum);
+        Assert.Equal("—", offlineWidget.Rows.First().Usage);
         cpu.UsageKey = "missing";
         vm.Apply(snapshot, now);
         Assert.Equal("—", cpu.Usage);
+        Assert.Equal("—", cpu.UsageMaximum);
         Assert.Contains(cpu.UsageChoices, c => c.Key == "missing");
         cpu.UsageKey = "";
         vm.Apply(snapshot, now.AddSeconds(15));
         Assert.Equal("Stale", cpu.State);
+        Assert.Equal("47%", cpu.UsageMaximum);
         vm.Apply(snapshot with { Sensors = [.. snapshot.Sensors.Select(s => s with { Value = null })] }, now);
         Assert.All(vm.Rows, r => Assert.Equal("—", r.Usage));
+        Assert.Equal("47%", cpu.UsageMaximum);
         vm.Apply(snapshot with { Sensors = [.. snapshot.Sensors.Select(s => s with { Value = 0 })] }, now);
         Assert.Equal("0%", cpu.Usage);
         Assert.Equal("0°C", cpu.Temperature);
@@ -90,7 +103,7 @@ internal static class WidgetChecks
         var backend = new TestBackend();
         var service = new MonitoringService(() => backend);
         await using var session = new MonitoringSession(settings, service,
-            new("TEST OS", "X64", "TEST", "0.9.6", "Standard user", "Not detected"));
+            new("TEST OS", "X64", "TEST", "0.9.6", "Standard user", "Not detected"), new SensorHistoryService());
         using var desktop = new DesktopFixture();
         var widget = new WidgetWindow(session.Widget, _ => { }, () => { }, () => desktop.Target);
         widget.DesktopStatusChanged += session.Diagnostics.SetDesktopStatus;
@@ -263,7 +276,7 @@ internal static class WidgetChecks
             await Task.Delay(150);
             Assert.InRange(cpuBar.Value, 5.01, interrupted - .01);
             Capture("widget-fill-fixture-falling.png");
-            await Task.Delay(500);
+            await WaitFor(() => !cpuBar.HasAnimatedProperties);
             Assert.Equal(5, cpuBar.Value);
             Assert.False(cpuBar.HasAnimatedProperties);
             SetCpuUsage(80);
