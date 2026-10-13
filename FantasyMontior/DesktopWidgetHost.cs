@@ -15,18 +15,20 @@ internal sealed class DesktopWidgetHost : IDisposable
 {
     private readonly Func<DesktopTarget?> _findDesktop;
     private readonly Action _lost;
+    private readonly Action? _geometryChanged;
     private readonly DispatcherTimer _health;
     private readonly DesktopNative.WinEventProc _eventProc;
     private DesktopTarget _target;
-    private nint _hwnd, _eventHook, _originalStyle;
+    private nint _hwnd, _eventHook, _locationHook, _originalStyle;
     private HwndSource? _source;
     private bool _disposed;
     internal bool IsAttached { get; private set; }
 
-    internal DesktopWidgetHost(Action lost, Func<DesktopTarget?>? findDesktop = null)
+    internal DesktopWidgetHost(Action lost, Func<DesktopTarget?>? findDesktop = null, Action? geometryChanged = null)
     {
         _findDesktop = findDesktop ?? FindDesktop;
         _lost = lost;
+        _geometryChanged = geometryChanged;
         _health = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(2) };
         _health.Tick += OnHealth;
         _eventProc = OnShellEvent;
@@ -76,6 +78,9 @@ internal sealed class DesktopWidgetHost : IDisposable
             _source?.AddHook(WindowProc);
             DesktopNative.GetWindowThreadProcessId(target.Window, out var process);
             _eventHook = DesktopNative.SetWinEventHook(0x8001, 0x8001, 0, _eventProc, process, 0, 0);
+            // A parent move changes the child's screen origin without a child WM_MOVE.
+            if (_geometryChanged is not null)
+                _locationHook = DesktopNative.SetWinEventHook(0x800B, 0x800B, 0, _eventProc, process, 0, 0);
             // The lightweight check also covers shell reparenting and missed destroy notifications.
             IsAttached = true;
             if (!Validate()) throw new InvalidOperationException("The desktop host changed during attachment.");
@@ -105,7 +110,9 @@ internal sealed class DesktopWidgetHost : IDisposable
             // for a previous attachment if a manual retry has already replaced it.
             _health.Dispatcher.BeginInvoke(new Action(() =>
             {
-                if (IsAttached && _target == target) _lost();
+                if (!IsAttached || _target != target) return;
+                if (evt == 0x8001) _lost(); // EVENT_OBJECT_DESTROY
+                else if (evt == 0x800B) _geometryChanged?.Invoke(); // EVENT_OBJECT_LOCATIONCHANGE
             }));
         }
     }
@@ -131,6 +138,7 @@ internal sealed class DesktopWidgetHost : IDisposable
         _health.Stop();
         IsAttached = false;
         if (_eventHook != 0) { DesktopNative.UnhookWinEvent(_eventHook); _eventHook = 0; }
+        if (_locationHook != 0) { DesktopNative.UnhookWinEvent(_locationHook); _locationHook = 0; }
         if (_source is { IsDisposed: false }) _source.RemoveHook(WindowProc);
         _source = null;
         if (_hwnd != 0 && DesktopNative.IsWindow(_hwnd))

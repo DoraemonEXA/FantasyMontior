@@ -20,6 +20,8 @@ public sealed class WidgetWindow : Window
     private readonly WidgetView _view;
     private HwndSource? _inputSource;
     private readonly DispatcherTimer _dragTimer;
+    private readonly DispatcherTimer _positionTimer;
+    internal bool IsPositionRestorePending => _positionTimer.IsEnabled;
     private readonly Func<DesktopPointer?> _readPointer;
     private bool _allowClose, _placing;
     private DesktopNative.Point? _dragStart;
@@ -36,7 +38,9 @@ public sealed class WidgetWindow : Window
         _readPointer = readPointer ?? DesktopNative.ReadPointer;
         _dragTimer = new DispatcherTimer(DispatcherPriority.Input) { Interval = TimeSpan.FromMilliseconds(16) };
         _dragTimer.Tick += OnDragTick;
-        _desktop = new DesktopWidgetHost(OnDesktopLost, findDesktop);
+        _positionTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(250) };
+        _positionTimer.Tick += OnPositionTick;
+        _desktop = new DesktopWidgetHost(OnDesktopLost, findDesktop, QueueRestorePosition);
         _settings = viewModel.Settings;
         _openDiagnostics = openDiagnostics;
         _exit = exit;
@@ -57,10 +61,14 @@ public sealed class WidgetWindow : Window
             _inputSource = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
             _inputSource?.AddHook(DragWindowProc);
         };
-        IsVisibleChanged += (_, _) => { if (!IsVisible) EndDrag(); };
+        IsVisibleChanged += (_, _) =>
+        {
+            if (!IsVisible) { _positionTimer.Stop(); EndDrag(); }
+        };
         Loaded += (_, _) => RestorePosition();
-        SizeChanged += (_, _) => { if (IsLoaded) QueueConstrain(); };
-        DpiChanged += (_, _) => QueueConstrain();
+        SizeChanged += (_, _) => QueueRestorePosition();
+        DpiChanged += (_, _) => QueueRestorePosition();
+        LocationChanged += (_, _) => QueueRestorePosition();
         MouseRightButtonUp += (_, e) => { OpenMenu(); e.Handled = true; };
         KeyDown += (_, e) =>
         {
@@ -82,15 +90,37 @@ public sealed class WidgetWindow : Window
         SystemEvents.DisplaySettingsChanged += OnDisplays;
     }
 
-    private void OnSettings() { if (_settings.IsLocked) EndDrag(); if (IsLoaded) QueueConstrain(); }
-    private void OnDisplays(object? sender, EventArgs e) => Dispatcher.BeginInvoke(new Action(() => { if (!IsClosed) RestorePosition(); }));
-    private void QueueConstrain() => Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(Constrain));
+    private void OnSettings() { if (_settings.IsLocked) EndDrag(); QueueRestorePosition(); }
+    private void OnDisplays(object? sender, EventArgs e) => Dispatcher.BeginInvoke(new Action(OnDisplayChange));
+    private void OnDisplayChange()
+    {
+        if (IsClosed) return;
+        // A mode switch invalidates the drag's screen coordinates. Do not save a
+        // transient/clamped position over the user's preferred monitor-relative DIPs.
+        EndDrag(save: false);
+        QueueRestorePosition();
+    }
+    private void QueueRestorePosition()
+    {
+        if (_placing || _dragStart is not null || !IsLoaded || !IsVisible || IsClosed || !_desktop.IsAttached) return;
+        // Display, child DPI and Explorer moves need not arrive together. Debounce
+        // their final layout, then restore intent rather than constrain a displaced HWND.
+        _positionTimer.Stop();
+        _positionTimer.Start();
+    }
+    private void OnPositionTick(object? sender, EventArgs e)
+    {
+        _positionTimer.Stop();
+        if (IsVisible && _dragStart is null) RestorePosition();
+    }
     private nint DragWindowProc(nint hwnd, int message, nint wParam, nint lParam, ref bool handled)
     {
         // Explorer owns the foreground window. Handle the HWND's actual button
         // messages before WPF's active-source/button-state filtering; never activate
         // Explorer or the widget to make dragging work.
-        if (message == 0x0002) { _dragStart = null; _dragTimer.Stop(); return 0; } // WM_DESTROY
+        if (message == 0x0002) { _dragStart = null; _dragTimer.Stop(); _positionTimer.Stop(); return 0; } // WM_DESTROY
+        if (message == 0x007E) { OnDisplayChange(); return 0; } // WM_DISPLAYCHANGE
+        if (message == 0x02E3) { QueueRestorePosition(); return 0; } // WM_DPICHANGED_AFTERPARENT
         if (message == 0x001F) { EndDrag(); return 0; } // WM_CANCELMODE
         if (message is 0x0201 or 0x0203) // LBUTTONDOWN / LBUTTONDBLCLK
         {
@@ -101,6 +131,7 @@ public sealed class WidgetWindow : Window
             // Start only over widget content, leaving viewport scrollbars to WPF.
             if (hit is null || hit != _view && !_view.IsAncestorOf(hit)) return 0;
             if (!DesktopNative.ClientToScreen(hwnd, ref client) || !DesktopNative.GetWindowRect(hwnd, out _dragRect)) return 0;
+            _positionTimer.Stop();
             _dragStart = client;
             // Do not take foreground mouse capture from Explorer. Tracking exists
             // only for this held-button gesture and stops on physical release.
@@ -141,17 +172,17 @@ public sealed class WidgetWindow : Window
     {
         X = unchecked((short)lParam.ToInt64()), Y = unchecked((short)(lParam.ToInt64() >> 16))
     };
-    private void EndDrag()
+    private void EndDrag(bool save = true)
     {
         if (_dragStart is null) return;
         _dragStart = null;
         _dragTimer.Stop();
-        if (_desktop.IsAttached) { Constrain(); SavePosition(); }
+        if (save && _desktop.IsAttached) { Constrain(); SavePosition(); }
     }
     private void OnDesktopLost()
     {
         if (IsClosed) return;
-        EndDrag();
+        EndDrag(save: false);
         Hide();
         _desktop.Detach();
         DesktopStatusChanged?.Invoke("Desktop connection lost. Use Retry desktop attachment from the tray.", "");
@@ -173,6 +204,8 @@ public sealed class WidgetWindow : Window
     }
     private void Cleanup()
     {
+        _positionTimer.Stop();
+        _positionTimer.Tick -= OnPositionTick;
         _dragTimer.Stop();
         _dragTimer.Tick -= OnDragTick;
         if (_inputSource is { IsDisposed: false }) _inputSource.RemoveHook(DragWindowProc);
@@ -197,8 +230,8 @@ public sealed class WidgetWindow : Window
         RestorePosition();
         DesktopStatusChanged?.Invoke("Widget attached to the desktop.", "");
     }
-    public void ResetPosition() { Place(null); SavePosition(); }
-    public void RestorePosition() => Place(_settings.Position);
+    public void ResetPosition() { _positionTimer.Stop(); Place(null); SavePosition(); }
+    public void RestorePosition() { _positionTimer.Stop(); Place(_settings.Position); }
     public ContextMenu BuildMenu()
     {
         var menu = new ContextMenu();
@@ -223,43 +256,55 @@ public sealed class WidgetWindow : Window
     // the virtual desktop as one uniform DPI space on mixed-scale monitors.
     private void Place(WidgetPosition? position)
     {
-        if (!_desktop.IsAttached || IsClosed) return;
-        var screen = Forms.Screen.AllScreens.FirstOrDefault(s => s.DeviceName == position?.Monitor)
-            ?? Forms.Screen.PrimaryScreen!;
-        var area = screen.WorkingArea;
-        var hwnd = new WindowInteropHelper(this).Handle;
-        // Move onto the destination monitor first so WPF receives WM_DPICHANGED and
-        // reports the window's actual scale, without a system-DPI monitor query.
-        if (Forms.Screen.FromHandle(hwnd).DeviceName != screen.DeviceName)
-            _desktop.MoveScreen(area.Left, area.Top);
-        var dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
-        MaxHeight = area.Height / dpi;
-        MaxWidth = area.Width / dpi;
-        UpdateLayout();
-        var width = ActualWidth * dpi;
-        var height = ActualHeight * dpi;
-        var x = position is not null && position.Monitor == screen.DeviceName ? area.Left + position.X * dpi : area.Right - width - 24 * dpi;
-        var y = position is not null && position.Monitor == screen.DeviceName ? area.Top + position.Y * dpi : area.Bottom - height - 24 * dpi;
-        Move(screen, x, y, width, height);
+        if (_placing || !_desktop.IsAttached || IsClosed) return;
+        _placing = true;
+        try
+        {
+            var screen = Forms.Screen.AllScreens.FirstOrDefault(s => s.DeviceName == position?.Monitor)
+                ?? Forms.Screen.PrimaryScreen!;
+            var area = screen.WorkingArea;
+            var hwnd = new WindowInteropHelper(this).Handle;
+            // Move onto the destination monitor first so WPF receives WM_DPICHANGED and
+            // reports the window's actual scale, without a system-DPI monitor query.
+            if (Forms.Screen.FromHandle(hwnd).DeviceName != screen.DeviceName)
+                _desktop.MoveScreen(area.Left, area.Top);
+            var dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
+            MaxHeight = area.Height / dpi;
+            MaxWidth = area.Width / dpi;
+            UpdateLayout();
+            var point = RestoredPosition(position, screen.DeviceName,
+                new Rect(area.X, area.Y, area.Width, area.Height), dpi,
+                new Size(ActualWidth * dpi, ActualHeight * dpi));
+            _desktop.MoveScreen((int)Math.Round(point.X), (int)Math.Round(point.Y));
+        }
+        finally { _placing = false; }
     }
+    internal static Point RestoredPosition(WidgetPosition? position, string monitor, Rect area, double dpi, Size pixels)
+    {
+        var x = position is not null && position.Monitor == monitor ? area.Left + position.X * dpi : area.Right - pixels.Width - 24 * dpi;
+        var y = position is not null && position.Monitor == monitor ? area.Top + position.Y * dpi : area.Bottom - pixels.Height - 24 * dpi;
+        return ClampPosition(area, x, y, pixels.Width, pixels.Height);
+    }
+    private static Point ClampPosition(Rect area, double x, double y, double width, double height) => new(
+        Math.Clamp(x, area.Left, Math.Max(area.Left, area.Right - width)),
+        Math.Clamp(y, area.Top, Math.Max(area.Top, area.Bottom - height)));
+
     private void Constrain()
     {
         if (_placing || !IsLoaded || IsClosed || !_desktop.IsAttached) return;
-        var hwnd = new WindowInteropHelper(this).Handle;
-        if (!DesktopNative.GetWindowRect(hwnd, out var rect)) return;
-        var screen = Forms.Screen.FromHandle(hwnd);
-        var dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
-        MaxHeight = screen.WorkingArea.Height / dpi;
-        MaxWidth = screen.WorkingArea.Width / dpi;
-        Move(screen, rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top);
-    }
-    private void Move(Forms.Screen screen, double x, double y, double width, double height)
-    {
-        var area = screen.WorkingArea;
-        x = Math.Clamp(x, area.Left, Math.Max(area.Left, area.Right - width));
-        y = Math.Clamp(y, area.Top, Math.Max(area.Top, area.Bottom - height));
         _placing = true;
-        try { _desktop.MoveScreen((int)Math.Round(x), (int)Math.Round(y)); }
+        try
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (!DesktopNative.GetWindowRect(hwnd, out var rect)) return;
+            var area = Forms.Screen.FromHandle(hwnd).WorkingArea;
+            var dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
+            MaxHeight = area.Height / dpi;
+            MaxWidth = area.Width / dpi;
+            var point = ClampPosition(new Rect(area.X, area.Y, area.Width, area.Height),
+                rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top);
+            _desktop.MoveScreen((int)Math.Round(point.X), (int)Math.Round(point.Y));
+        }
         finally { _placing = false; }
     }
     private void SavePosition()

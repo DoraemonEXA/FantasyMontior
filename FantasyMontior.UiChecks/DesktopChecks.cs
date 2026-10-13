@@ -32,6 +32,7 @@ internal static class DesktopChecks
 {
     internal static async Task VerifyAsync(MonitoringSession session, string output)
     {
+        VerifyScaledPositions();
         using var desktop = new DesktopFixture();
         var available = false;
         var discoveries = 0;
@@ -68,6 +69,7 @@ internal static class DesktopChecks
             Assert.DoesNotContain(widget.BuildMenu().Items.OfType<MenuItem>(), m => Equals(m.Header, "Always on top"));
 
             await VerifyDragAsync(widget, session.Settings, pointer);
+            await VerifyPositionRecoveryAsync(widget, session.Settings, desktop, pointer);
             widget.ResetPosition();
             DesktopNative.GetWindowRect(hwnd, out var before);
             Assert.True(before.Right > 0 && before.Bottom > 0); // Parent origin is -10000, not the widget's screen origin.
@@ -79,10 +81,12 @@ internal static class DesktopChecks
             Assert.InRange(Math.Abs(before.Top - after.Top), 0, 1);
             Assert.Equal(2, discoveries); // Re-show uses the existing attachment.
 
+            SendMessage(hwnd, 0x02E3, 0, 0);
             desktop.LoseIconView();
             await Task.Delay(2300);
             Assert.False(widget.IsVisible);
             Assert.False(widget.IsDesktopAttached);
+            Assert.False(widget.IsPositionRestorePending);
             Assert.Equal(2, discoveries);
             Assert.Equal(0, DesktopNative.GetParent(hwnd));
 
@@ -104,6 +108,7 @@ internal static class DesktopChecks
             widget.DesktopStatusChanged -= session.Diagnostics.SetDesktopStatus;
         }
         Assert.True(widget.IsClosed);
+        Assert.False(widget.IsPositionRestorePending);
 
         // A different-awareness parent must be rejected BEFORE SetParent can reset
         // the WPF process's awareness. These native STATIC windows contain no WPF.
@@ -168,8 +173,8 @@ internal static class DesktopChecks
             shell.OpenDiagnostics(false);
         }
         File.WriteAllText(Path.Combine(output, "desktop-fixture-checks.txt"),
-            "PASS: controlled HWND parenting, child styles, screen/client conversion, hidden failure, manual retry, host loss and cleanup.\n" +
-            "NOT VERIFIED: Explorer, Show Desktop/Win+D, physical input, mixed DPI, elevated app.\n");
+            "PASS: controlled HWND parenting, child styles, screen/client conversion, delayed placement recovery, parent movement, scaled geometry, hidden failure, manual retry, host loss and cleanup.\n" +
+            "NOT VERIFIED: Explorer, Show Desktop/Win+D, physical input, fullscreen game transitions, physical mixed DPI, elevated app.\n");
         Console.WriteLine("DESKTOP_FIXTURE_CHECKS: PASS — controlled HWNDs only; not Explorer acceptance.");
     }
 
@@ -178,6 +183,102 @@ internal static class DesktopChecks
         internal DesktopPointer? State;
         internal int Reads;
         internal DesktopPointer? Read() { Reads++; return State; }
+    }
+
+    private static async Task VerifyPositionRecoveryAsync(WidgetWindow widget,
+        ViewModels.SettingsViewModel settings, DesktopFixture desktop, PointerFixture pointer)
+    {
+        var hwnd = new WindowInteropHelper(widget).Handle;
+        var screen = System.Windows.Forms.Screen.FromHandle(hwnd);
+        settings.SetPosition(new(screen.DeviceName, 120, 90));
+        widget.RestorePosition();
+        Assert.True(DesktopNative.GetWindowRect(hwnd, out var expected));
+        var saved = settings.Position;
+        var foreground = GetForegroundWindow();
+
+        // A display notification can arrive before WPF/Explorer's final move.
+        // Simulate that ordering without changing the user's display mode.
+        SendMessage(hwnd, 0x007E, 32, 0); // WM_DISPLAYCHANGE
+        await Task.Delay(80);
+        var origin = new DesktopNative.Point { X = screen.WorkingArea.Left, Y = screen.WorkingArea.Top };
+        Assert.True(DesktopNative.ScreenToClient(desktop.Target.Window, ref origin));
+        Assert.True(DesktopNative.SetWindowPos(hwnd, 0, origin.X, origin.Y, 0, 0, 0x0015));
+        await Task.Delay(650);
+        AssertPosition(hwnd, expected);
+        Assert.Equal(saved, settings.Position);
+
+        // Moving the parent changes the child's screen coordinates without a
+        // child WM_MOVE. Recovery must also observe the desktop host's geometry.
+        Assert.True(DesktopNative.GetWindowRect(desktop.Target.Window, out var parent));
+        Assert.True(DesktopNative.SetWindowPos(desktop.Target.Window, 0, parent.Left - 37, parent.Top + 19, 0, 0, 0x0015));
+        await Task.Delay(650);
+        AssertPosition(hwnd, expected);
+        Assert.Equal(saved, settings.Position);
+        Assert.False(widget.IsPositionRestorePending); // No feedback loop or idle placement timer.
+
+        // Per-monitor-v2 children also receive a notification after the parent's
+        // DPI update. Exercise the message path, without faking physical DPI.
+        SendMessage(hwnd, 0x02E3, 0, 0); // WM_DPICHANGED_AFTERPARENT
+        Assert.True(widget.IsPositionRestorePending);
+        widget.Hide();
+        Assert.False(widget.IsPositionRestorePending);
+        SendMessage(hwnd, 0x007E, 32, 0);
+        await Task.Delay(350);
+        Assert.False(widget.IsVisible);
+        Assert.False(widget.IsPositionRestorePending);
+        widget.Reveal();
+        AssertPosition(hwnd, expected);
+
+        // A new drag supersedes pending automatic recovery. A display switch
+        // during that drag cancels its now-invalid coordinate origin without saving it.
+        settings.IsLocked = false;
+        SendMessage(hwnd, 0x02E3, 0, 0);
+        pointer.State = new(expected.Left + 80, expected.Top + 10, true);
+        SendMouse(hwnd, 0x0201, 1, 100, 20);
+        Assert.False(widget.IsPositionRestorePending);
+        SendMouse(hwnd, 0x0200, 1, 100, 20);
+        SendMessage(hwnd, 0x007E, 32, 0);
+        var readsAfterDisplayChange = pointer.Reads;
+        await Task.Delay(650);
+        Assert.Equal(readsAfterDisplayChange, pointer.Reads);
+        AssertPosition(hwnd, expected);
+        Assert.Equal(saved, settings.Position);
+        settings.IsLocked = true;
+        await Task.Delay(350);
+        Assert.False(widget.IsPositionRestorePending);
+        Assert.Equal(foreground, GetForegroundWindow());
+        Console.WriteLine("DESKTOP_POSITION_CHECKS: PASS - delayed displacement and parent movement restore saved coordinates without activation. Controlled HWNDs only.");
+    }
+
+    private static void VerifyScaledPositions()
+    {
+        var saved = new ViewModels.WidgetPosition("4K", 1000, 500);
+        var desktop = new Rect(-3840, -300, 3840, 2080);
+        foreach (var scale in new[] { 1.75, 2, 2.5 })
+        {
+            var size = new Size(360 * scale, 160 * scale);
+            var expected = new Point(-3840 + 1000 * scale, -300 + 500 * scale);
+            for (var cycle = 0; cycle < 3; cycle++)
+            {
+                Assert.Equal(expected, WidgetWindow.RestoredPosition(saved, "4K", desktop, scale, size));
+                // A temporary lower-resolution game mode clamps the HWND only.
+                var game = WidgetWindow.RestoredPosition(saved, "4K", new Rect(-1920, -300, 1920, 1000), scale, size);
+                Assert.Equal(new Point(-size.Width, 700 - size.Height), game);
+                Assert.Equal(expected, WidgetWindow.RestoredPosition(saved, "4K", desktop, scale, size));
+            }
+        }
+        var fallback = new Rect(0, 0, 1920, 1040);
+        Assert.Equal(new Point(1152, 672), WidgetWindow.RestoredPosition(saved, "PRIMARY", fallback, 2, new Size(720, 320)));
+        Assert.Equal(new Point(1152, 672), WidgetWindow.RestoredPosition(null, "PRIMARY", fallback, 2, new Size(720, 320)));
+        Assert.Equal(new Point(0, 0), WidgetWindow.RestoredPosition(saved, "4K", fallback, 2, new Size(4000, 2200)));
+        Console.WriteLine("DESKTOP_SCALE_CHECKS: PASS - 175/200/250 percent geometry, repeated 4K/game-mode round trips, negative origin, fallback and oversized viewport. Simulated geometry only.");
+    }
+
+    private static void AssertPosition(nint hwnd, DesktopNative.Rect expected)
+    {
+        Assert.True(DesktopNative.GetWindowRect(hwnd, out var actual));
+        Assert.InRange(Math.Abs(expected.Left - actual.Left), 0, 1);
+        Assert.InRange(Math.Abs(expected.Top - actual.Top), 0, 1);
     }
 
     private static async Task VerifyDragAsync(WidgetWindow widget, ViewModels.SettingsViewModel settings, PointerFixture pointer)
