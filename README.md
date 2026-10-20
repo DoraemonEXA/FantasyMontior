@@ -97,6 +97,7 @@ Do not accept an all-zero CPU temperature as proof of retrieval merely because t
 ```powershell
 dotnet test FantasyMontior.Tests/FantasyMontior.Tests.csproj --no-restore
 dotnet run --project FantasyMontior.UiChecks --no-restore
+dotnet run --project FantasyMontior.UiChecks --no-restore -- --desktop-recovery
 dotnet build FantasyMontior.sln -c Release --no-restore
 dotnet run --project FantasyMontior.Probe -c Release --no-build -- 600 artifacts/verification
 ```
@@ -104,6 +105,8 @@ dotnet run --project FantasyMontior.Probe -c Release --no-build -- 600 artifacts
 The probe accepts a duration of 1–3600 seconds and an output directory. It writes `snapshot.json` throughout the run and `summary.json` after cleanup, including sensor ranges, process resource samples, errors, and shutdown duration. It records history in an isolated subdirectory and verifies that each recorded/restored peak matches an independent accumulator of published sensor readings. Exit code 0 means this history check passed and at least one live sensor was observed at completion, **not** that all required CPU/GPU metrics passed validation.
 
 The standalone UI runner renders actual controls into `artifacts/ui/`, checks filtering and selection/scroll retention, and exercises stale/unavailable states. If `artifacts/verification/snapshot.json` exists, it also renders that real capture; otherwise it uses explicitly named test devices. It prints `UI_CHECKS: PASS` only after validation and dispatcher shutdown; failures print exceptions and return nonzero. Rendered images are static layout evidence, not an interactive desktop session or a physical DPI transition test. Generated artifacts are ignored by Git.
+
+The focused `--desktop-recovery` check disposes the widget's native window source without a WPF `Closed` event, then exercises tray show/retry, menus opened before destruction, repeated recreation, continued collection and exit cleanup. It uses controlled HWNDs and a fake hardware backend, and also runs as part of the full UI checks. It does not restart Explorer or establish interactive desktop acceptance.
 
 Keep WPF checks out of `testhost.exe`. Run them in the standalone UI runner with its normal main-thread dispatcher lifecycle, and check both assertions and process exit status.
 

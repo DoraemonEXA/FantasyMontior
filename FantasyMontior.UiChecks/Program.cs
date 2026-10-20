@@ -45,14 +45,17 @@ public static class Program
             {
                 if (args.Length == 0)
                 {
+                    await DesktopChecks.VerifyRecoveryAsync(Path.Combine(FindRepository(), "artifacts", "ui"));
                     VerifyPresentation();
                     await TrendsChecks.VerifyAsync(Path.Combine(FindRepository(), "artifacts", "ui"));
                     await AutoStartChecks.VerifyAsync(Path.Combine(FindRepository(), "artifacts", "ui", "autostart-test.json"));
                     await WidgetChecks.VerifyAsync(Path.Combine(FindRepository(), "artifacts", "ui"));
                 }
+                else if (args.Length == 1 && args[0] == "--desktop-recovery")
+                    await DesktopChecks.VerifyRecoveryAsync(Path.Combine(FindRepository(), "artifacts", "ui"));
                 else if (args.Length == 3 && args[0] == "--widget-probe" && int.TryParse(args[1], out var seconds) && seconds is >= 1 and <= 3600)
                     await WidgetHardwareProbe.RunAsync(seconds, Path.GetFullPath(args[2]));
-                else throw new ArgumentException("Usage: FantasyMontior.UiChecks [--widget-probe <seconds: 1..3600> <output-directory>]");
+                else throw new ArgumentException("Usage: FantasyMontior.UiChecks [--desktop-recovery | --widget-probe <seconds: 1..3600> <output-directory>]");
                 passed = true;
                 app.Shutdown(0);
             }
@@ -67,7 +70,9 @@ public static class Program
         {
             Console.WriteLine(args.Length == 0
                 ? "UI_CHECKS: PASS — bindings, identity, filtering, selection, scrolling, localization, settings persistence, rendering; WPF dispatcher shut down."
-                : "WIDGET_PROBE: PASS — capture complete; WPF dispatcher shut down. This does not establish sensor accuracy.");
+                : args[0] == "--desktop-recovery"
+                    ? "DESKTOP_RECOVERY: PASS — controlled HWND recovery; WPF dispatcher shut down."
+                    : "WIDGET_PROBE: PASS — capture complete; WPF dispatcher shut down. This does not establish sensor accuracy.");
             return 0;
         }
         Console.Error.WriteLine("UI_CHECKS: FAIL — validation or dispatcher shutdown did not complete.");

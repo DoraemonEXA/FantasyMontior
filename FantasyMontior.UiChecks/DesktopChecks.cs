@@ -3,6 +3,8 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
+using FantasyMontior.Core;
+using FantasyMontior.ViewModels;
 using Xunit;
 
 namespace FantasyMontior.UiChecks;
@@ -176,6 +178,117 @@ internal static class DesktopChecks
             "PASS: controlled HWND parenting, child styles, screen/client conversion, delayed placement recovery, parent movement, scaled geometry, hidden failure, manual retry, host loss and cleanup.\n" +
             "NOT VERIFIED: Explorer, Show Desktop/Win+D, physical input, fullscreen game transitions, physical mixed DPI, elevated app.\n");
         Console.WriteLine("DESKTOP_FIXTURE_CHECKS: PASS — controlled HWNDs only; not Explorer acceptance.");
+    }
+
+    internal static async Task VerifyRecoveryAsync(string output)
+    {
+        Directory.CreateDirectory(output);
+        var path = Path.Combine(output, "desktop-recovery-settings.json");
+        File.WriteAllText(path, "{\"Language\":\"en\",\"SampleSeconds\":1}");
+        var backend = new RecoveryBackend();
+        var service = new MonitoringService(() => backend);
+        await using var session = new MonitoringSession(new SettingsViewModel(path), service,
+            new("TEST OS", "X64", "TEST", "0.9.6", "Standard user", "Not detected"), new SensorHistoryService());
+        using var desktop = new DesktopFixture();
+        using var replacementDesktop = new DesktopFixture();
+        var currentTarget = desktop.Target;
+        var available = true;
+        var discoveries = 0;
+        await using var shell = new WidgetApplication(session, () => { discoveries++; return available ? currentTarget : null; });
+        shell.Start();
+        for (var attempt = 0; attempt < 100 && backend.OpenCount == 0; attempt++) await Task.Delay(20);
+        Assert.Equal(1, backend.OpenCount);
+        for (var cycle = 0; cycle < 3; cycle++)
+        {
+            var original = shell.GetWidget();
+            original.Hide();
+            shell.RevealWidget();
+            Assert.Same(original, shell.GetWidget()); // A hidden, live window is reusable.
+            Assert.True(original.IsVisible);
+            original.Hide();
+            var pendingMenu = shell.BuildTrayMenu()!;
+            var hwnd = new WindowInteropHelper(original).Handle;
+            var closed = false;
+            var lossNotifications = 0;
+            original.Closed += (_, _) => closed = true;
+            original.DesktopStatusChanged += (_, _) => lossNotifications++;
+            var discoveriesBeforeLoss = discoveries;
+            var publicationBeforeLoss = service.Latest.CapturedAt;
+            HwndSource.FromHwnd(hwnd)!.Dispose();
+            Assert.False(closed); // Source disposal bypasses Closed: the original crash.
+            Assert.True(original.IsClosed);
+            Assert.False(DesktopNative.IsWindow(hwnd));
+            Assert.False(original.IsDesktopAttached);
+            Assert.False(original.IsPositionRestorePending);
+            // Pump queued callbacks and allow another collection without auto-recovery.
+            for (var attempt = 0; attempt < 100 && service.Latest.CapturedAt == publicationBeforeLoss; attempt++)
+                await Task.Delay(20);
+            Assert.NotEqual(publicationBeforeLoss, service.Latest.CapturedAt);
+            Assert.Equal(discoveriesBeforeLoss, discoveries);
+            Assert.Equal(1, lossNotifications);
+            if (cycle == 0) shell.RevealWidget(); // Actual tray double-click handler.
+            else Click(pendingMenu, "Show widget"); // Menu built before HWND loss.
+            var restored = shell.GetWidget();
+            Assert.NotSame(original, restored);
+            Assert.True(restored.IsVisible);
+            Assert.True(restored.IsDesktopAttached);
+            Assert.Same(restored, Application.Current.MainWindow);
+            Assert.Same(session.Widget, ((FrameworkElement)((ScrollViewer)restored.Content).Content).DataContext);
+            Assert.Equal(1, backend.OpenCount);
+            Assert.Equal(0, backend.CloseCount);
+            original.CloseForExit(); // Teardown after source disposal is harmless.
+        }
+
+        // Retry from a menu whose unattached window source has since been disposed.
+        HwndSource.FromHwnd(new WindowInteropHelper(shell.GetWidget()).Handle)!.Dispose();
+        available = false;
+        shell.RevealWidget();
+        var unavailable = shell.GetWidget();
+        Assert.False(unavailable.IsVisible);
+        var retryMenu = shell.BuildTrayMenu()!;
+        HwndSource.FromHwnd(new WindowInteropHelper(unavailable).Handle)!.Dispose();
+        available = true;
+        Click(retryMenu, "Retry desktop attachment");
+        var recovered = shell.GetWidget();
+        Assert.NotSame(unavailable, recovered);
+        Assert.True(recovered.IsVisible);
+        Assert.True(recovered.IsDesktopAttached);
+
+        // Native parent destruction also retires the child; replacement is explicit.
+        desktop.Dispose();
+        await Task.Yield();
+        Assert.True(recovered.IsClosed);
+        Assert.False(recovered.IsDesktopAttached);
+        currentTarget = replacementDesktop.Target;
+        shell.RevealWidget();
+        var replacement = shell.GetWidget();
+        Assert.NotSame(recovered, replacement);
+        Assert.True(replacement.IsVisible);
+        Assert.True(replacement.IsDesktopAttached);
+
+        var stop = shell.DisposeAsync().AsTask();
+        shell.RevealWidget();
+        Click(retryMenu, "Retry desktop attachment");
+        Assert.Null(shell.BuildTrayMenu());
+        await stop;
+        shell.RevealWidget();
+        Assert.Same(replacement, shell.GetWidget());
+        Assert.True(replacement.IsClosed);
+        Assert.Equal(1, backend.OpenCount);
+        Assert.Equal(1, backend.CloseCount);
+        Console.WriteLine("DESKTOP_RECOVERY_CHECKS: PASS — source disposal without Closed, native parent destruction, tray show/retry, stale menus, repeated recovery, continued collection and exit cleanup. Controlled HWNDs only.");
+
+        static void Click(ContextMenu menu, string text) => menu.Items.OfType<MenuItem>()
+            .Single(item => Equals(item.Header, Localization.T(text)))
+            .RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+    }
+
+    private sealed class RecoveryBackend : IHardwareBackend
+    {
+        internal int OpenCount, CloseCount;
+        public IReadOnlyList<IMonitorHardware> Hardware => [];
+        public void Open() => Interlocked.Increment(ref OpenCount);
+        public void Dispose() => Interlocked.Increment(ref CloseCount);
     }
 
     private sealed class PointerFixture

@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using Forms = System.Windows.Forms;
 using Drawing = System.Drawing;
 
@@ -38,11 +39,10 @@ public sealed class WidgetApplication : IAsyncDisposable
         finally { DestroyIcon(handle); }
         // NotifyIcon already handles TaskbarCreated and re-adds its icon after Explorer restarts.
         _tray = new Forms.NotifyIcon { Icon = _icon, Text = "FantasyMontior", Visible = true };
-        _tray.DoubleClick += (_, _) => GetWidget().Reveal();
+        _tray.DoubleClick += (_, _) => RevealWidget();
         _tray.MouseClick += (_, e) =>
         {
-            if (e.Button != Forms.MouseButtons.Right) return;
-            var menu = GetWidget().BuildMenu();
+            if (e.Button != Forms.MouseButtons.Right || BuildTrayMenu() is not { } menu) return;
             menu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
             menu.IsOpen = true;
         };
@@ -64,7 +64,13 @@ public sealed class WidgetApplication : IAsyncDisposable
         }
         return _widget;
     }
-    public void Start() { GetWidget().Reveal(); _session.Start(); }
+    internal void RevealWidget()
+    {
+        if (!_exiting) GetWidget().Reveal();
+    }
+    internal ContextMenu? BuildTrayMenu() => _exiting ? null :
+        GetWidget().BuildMenu(() => _exiting ? null : GetWidget());
+    public void Start() { if (_exiting) return; RevealWidget(); _session.Start(); }
     public void OpenDiagnostics(bool settings)
     {
         if (_exiting) return;

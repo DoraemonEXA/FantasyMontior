@@ -60,6 +60,7 @@ public sealed class WidgetWindow : Window
         {
             _inputSource = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
             _inputSource?.AddHook(DragWindowProc);
+            if (_inputSource is not null) _inputSource.Disposed += OnWindowDestroyed;
         };
         IsVisibleChanged += (_, _) =>
         {
@@ -76,18 +77,23 @@ public sealed class WidgetWindow : Window
             { OpenMenu(); e.Handled = true; }
         };
         Closing += OnClosing;
-        Closed += (_, _) =>
-        {
-            IsClosed = true;
-            _inputSource = null;
-            _dragStart = null;
-            _dragTimer.Stop();
-            _desktop.WindowDestroyed();
-            Cleanup();
-            if (!_allowClose) DesktopStatusChanged?.Invoke("Desktop connection lost. Use Retry desktop attachment from the tray.", "");
-        };
+        Closed += OnWindowDestroyed;
         _settings.SettingsChanged += OnSettings;
         SystemEvents.DisplaySettingsChanged += OnDisplays;
+    }
+
+    private void OnWindowDestroyed(object? sender, EventArgs e)
+    {
+        // HwndSource disposal can make WPF's Window unusable without raising Closed.
+        // Retire it on either notification; never reparent/restyle a dying HWND.
+        if (IsClosed) return;
+        IsClosed = true;
+        if (_inputSource is not null) _inputSource.Disposed -= OnWindowDestroyed;
+        _inputSource = null;
+        _dragStart = null;
+        _desktop.WindowDestroyed();
+        Cleanup();
+        if (!_allowClose) DesktopStatusChanged?.Invoke("Desktop connection lost. Use Retry desktop attachment from the tray.", "");
     }
 
     private void OnSettings() { if (_settings.IsLocked) EndDrag(); QueueRestorePosition(); }
@@ -208,7 +214,11 @@ public sealed class WidgetWindow : Window
         _positionTimer.Tick -= OnPositionTick;
         _dragTimer.Stop();
         _dragTimer.Tick -= OnDragTick;
-        if (_inputSource is { IsDisposed: false }) _inputSource.RemoveHook(DragWindowProc);
+        if (_inputSource is not null)
+        {
+            _inputSource.Disposed -= OnWindowDestroyed;
+            if (!_inputSource.IsDisposed) _inputSource.RemoveHook(DragWindowProc);
+        }
         _inputSource = null;
         _settings.SettingsChanged -= OnSettings;
         SystemEvents.DisplaySettingsChanged -= OnDisplays;
@@ -232,7 +242,8 @@ public sealed class WidgetWindow : Window
     }
     public void ResetPosition() { _positionTimer.Stop(); Place(null); SavePosition(); }
     public void RestorePosition() { _positionTimer.Stop(); Place(_settings.Position); }
-    public ContextMenu BuildMenu()
+    public ContextMenu BuildMenu() => BuildMenu(() => IsClosed ? null : this);
+    internal ContextMenu BuildMenu(Func<WidgetWindow?> getWidget)
     {
         var menu = new ContextMenu();
         void Add(string text, Action action, bool check = false, bool selected = false)
@@ -241,12 +252,17 @@ public sealed class WidgetWindow : Window
             item.Click += (_, _) => action();
             menu.Items.Add(item);
         }
-        Add(IsVisible ? "Hide widget" : "Show widget", () => { if (IsVisible) Hide(); else Reveal(); });
+        // A tray menu can outlive this HWND. Resolve its target when clicked.
+        Add(IsVisible ? "Hide widget" : "Show widget", () =>
+        {
+            if (getWidget() is not { } widget) return;
+            if (widget.IsVisible) widget.Hide(); else widget.Reveal();
+        });
         Add("Settings", () => _openDiagnostics(true));
         Add("Diagnostics", () => _openDiagnostics(false));
         Add(_settings.IsLocked ? "Unlock widget" : "Lock widget", () => _settings.IsLocked = !_settings.IsLocked);
-        Add("Reset position", ResetPosition);
-        if (!_desktop.IsAttached) Add("Retry desktop attachment", Reveal);
+        Add("Reset position", () => getWidget()?.ResetPosition());
+        if (!_desktop.IsAttached) Add("Retry desktop attachment", () => getWidget()?.Reveal());
         menu.Items.Add(new Separator());
         Add("Exit", _exit);
         return menu;
