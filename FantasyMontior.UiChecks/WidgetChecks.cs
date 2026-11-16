@@ -12,6 +12,7 @@ namespace FantasyMontior.UiChecks;
 
 internal static class WidgetChecks
 {
+    private const string DiskId = "/logical-drive/C";
     internal static async Task VerifyAsync(string output)
     {
         var path = Path.Combine(output, "widget-settings-test.json");
@@ -29,22 +30,27 @@ internal static class WidgetChecks
         var now = DateTimeOffset.UtcNow;
         var snapshot = new MonitoringSnapshot(now, now, "Monitoring",
             [new("cpu", "TEST CPU", "Cpu", "cpu"), new("gpu", "TEST GPU", "GpuNvidia", "gpu"),
-             new("/ram", "TEST RAM", "Memory", "/ram"), new("/vram", "TEST VIRTUAL MEMORY", "Memory", "/vram")],
+             new("/ram", "TEST RAM", "Memory", "/ram"), new("/vram", "TEST VIRTUAL MEMORY", "Memory", "/vram"),
+             new(DiskId, "C:", DriveSpaceHardware.HardwareKind, DiskId)],
             [new("cpu/load", "cpu", "CPU Total", "Load", "%", 27, now),
              new("cpu/temp", "cpu", "CPU Package", "Temperature", "°C", 54, now),
              new("gpu/load", "gpu", "GPU Core", "Load", "%", 68, now),
              new("gpu/temp", "gpu", "GPU Core", "Temperature", "°C", 62, now),
              new("ram/load", "/ram", "Memory", "Load", "%", 43, now),
-             new("vram/load", "/vram", "Memory", "Load", "%", 99, now)], []);
+             new("vram/load", "/vram", "Memory", "Load", "%", 99, now),
+             new(DiskId + DriveSpaceHardware.UsageSuffix, DiskId, DriveSpaceHardware.UsageName, "Load", "%", 68, now),
+             new(DiskId + DriveSpaceHardware.UsedSuffix, DiskId, DriveSpaceHardware.UsageName, "Data", "GiB", 340, now),
+             new(DiskId + DriveSpaceHardware.TotalSuffix, DiskId, "Total Space", "Data", "GiB", 500, now)], []);
         var history = new SensorHistoryService();
         var peakTime = now.AddMinutes(-1);
         history.Record(snapshot with { CapturedAt = peakTime, Sensors = [.. snapshot.Sensors.Select(s => s with { LastSuccess = peakTime, Value = s.Value + 20 })] }, TimeSpan.FromSeconds(1));
         history.Record(snapshot, TimeSpan.FromSeconds(1));
         var vm = new WidgetViewModel(settings, history);
         vm.Apply(snapshot, now);
-        Assert.Equal(3, vm.Rows.Count);
+        Assert.Equal(4, vm.Rows.Count);
+        VerifyDriveRow(vm, snapshot, history, now, output, path);
         await VerifyAnimationAsync(vm, snapshot, now, output);
-        Assert.Equal(43, vm.Rows.Last().Fill);
+        Assert.Equal(43, vm.Rows.Single(r => r.Id == "/ram").Fill);
         var cpu = vm.Rows.First();
         Assert.Equal("47%", cpu.UsageMaximum);
         Assert.Equal("74°C", cpu.TemperatureMaximum);
@@ -80,6 +86,7 @@ internal static class WidgetChecks
             Localization.Apply(language);
             settings.FontSize = font;
             vm.Apply(snapshot, now);
+            Assert.Equal(language == "en" ? "Disk C:" : "磁盘 C:", vm.Rows.Last().Label);
             Render(vm, output, $"widget-fixture-{language}-{font}-{scale * 100:0}.png", scale);
         }
         settings.FontSize = 16;
@@ -98,6 +105,7 @@ internal static class WidgetChecks
         var restored = new SettingsViewModel(path);
         Assert.Equal(16, restored.FontSize);
         Assert.Equal("cpu/load", restored.Sources["cpu"].UsageKey);
+        Assert.Equal(DriveSpaceHardware.HardwareKind, restored.Sources[DiskId].Kind);
         Assert.Equal(-200, restored.Position!.X);
 
         var backend = new TestBackend();
@@ -153,6 +161,7 @@ internal static class WidgetChecks
         transparency.Value = 0;
         widget.UpdateLayout();
         Assert.Equal(1, Descendants<WidgetView>(widget).Single().Opacity);
+        var defaultWidth = widget.ActualWidth;
         var slider = Descendants<Slider>(second).Single(s => s.Maximum == 28);
         slider.Value = 28;
         Assert.Equal(28, settings.FontSize);
@@ -164,7 +173,7 @@ internal static class WidgetChecks
         Assert.False(widget.Topmost);
         settings.FontSize = 28;
         await Task.Delay(100);
-        Assert.True(widget.ActualWidth >= 620);
+        Assert.InRange(Math.Abs(widget.ActualWidth - defaultWidth * 28 / 16), 0, 2);
         widget.ResetPosition();
         Assert.NotEqual("TEST-MONITOR", settings.Position!.Monitor);
         Assert.Equal(1, backend.OpenCount);
@@ -183,15 +192,75 @@ internal static class WidgetChecks
         Console.WriteLine("WIDGET_CHECKS: PASS — source selection, migration, states, 18 three-background renders, shared-session windows and cleanup.");
     }
 
+    private static void VerifyDriveRow(WidgetViewModel vm, MonitoringSnapshot snapshot, SensorHistoryService history,
+        DateTimeOffset now, string output, string settingsPath)
+    {
+        Localization.Apply("en");
+        vm.Apply(snapshot, now);
+        var disk = Assert.Single(vm.Rows.Where(r => r.IsDrive));
+        Assert.Same(disk, vm.Rows.Last());
+        Assert.Equal("GPU", vm.Rows.Single(r => r.Kind == "GpuNvidia").Label);
+        Assert.Equal("disk", disk.Icon);
+        Assert.False(disk.HasTemperature);
+        Assert.Empty(disk.Temperature);
+        Assert.Empty(disk.TemperatureMaximum);
+        Assert.Equal("68%", disk.Usage);
+        Assert.Equal("88%", disk.UsageMaximum);
+        Assert.Equal("340.0 / 500.0 GiB", disk.Capacity);
+        Assert.Empty(disk.State);
+        var originalId = disk.UsageHistoryId;
+
+        var large = snapshot with { Sensors = [.. snapshot.Sensors.Select(s => s.Id == DiskId + DriveSpaceHardware.UsedSuffix ? s with { Value = 1536 }
+            : s.Id == DiskId + DriveSpaceHardware.TotalSuffix ? s with { Value = 2048 } : s)] };
+        vm.Apply(large, now);
+        Assert.Equal("1.5 / 2.0 TiB", disk.Capacity);
+        Render(vm, output, "widget-disk-tib-fixture.png", 1);
+        vm.Apply(snapshot with { Sensors = [.. snapshot.Sensors.Where(s => s.Id != DiskId + DriveSpaceHardware.TotalSuffix)] }, now);
+        Assert.Equal("—", disk.Capacity);
+        Assert.Equal("Unavailable", disk.State);
+        vm.Apply(snapshot, now.AddSeconds(15));
+        Assert.Equal("Stale", disk.State);
+        Assert.Equal("340.0 / 500.0 GiB", disk.Capacity);
+        Assert.False(disk.IsUsageLive);
+        Assert.Equal("88%", disk.UsageMaximum);
+        vm.Apply(snapshot with { Sensors = [.. snapshot.Sensors.Where(s => s.HardwareId != DiskId)] }, now);
+        Assert.Equal("—", disk.Usage);
+        Assert.Equal("—", disk.Capacity);
+        Assert.Equal("Unavailable", disk.State);
+        Assert.False(disk.IsUsageLive);
+
+        const string otherDisk = "/logical-drive/D";
+        var changed = snapshot with
+        {
+            Hardware = [.. snapshot.Hardware.Select(h => h.Id == DiskId ? h with { Id = otherDisk, RootId = otherDisk, Name = "D:" } : h)],
+            Sensors = [.. snapshot.Sensors.Select(s => s.HardwareId == DiskId ? s with { Id = s.Id.Replace(DiskId, otherDisk), HardwareId = otherDisk } : s)]
+        };
+        vm.Apply(changed, now);
+        var replacement = Assert.Single(vm.Rows.Where(r => r.IsDrive));
+        Assert.Equal("Disk D:", replacement.Label);
+        Assert.NotEqual(originalId, replacement.UsageHistoryId);
+        Assert.Equal("—", replacement.UsageMaximum);
+        Assert.Equal(88, history.GetMaximum(originalId));
+        Assert.DoesNotContain(DiskId, vm.Settings.Sources.Keys);
+        var reopened = new WidgetViewModel(new SettingsViewModel(settingsPath), history);
+        reopened.Apply(MonitoringSnapshot.Empty, now);
+        Assert.Equal("Disk D:", Assert.Single(reopened.Rows.Where(r => r.IsDrive)).Label);
+        Assert.Equal("—", reopened.Rows.Last().Capacity);
+        vm.Apply(snapshot, now);
+        Assert.Equal("Disk C:", Assert.Single(vm.Rows.Where(r => r.IsDrive)).Label);
+        Assert.Equal("88%", vm.Rows.Last().UsageMaximum);
+        Console.WriteLine("DISK_WIDGET_CHECKS: PASS — capacity, units, localization, stale/missing readings, rediscovery and separate history.");
+    }
+
     internal static void Render(WidgetViewModel vm, string output, string name, double scale, bool fixture = true)
     {
-        var width = 360 * vm.Settings.FontSize / 16;
         var probe = new WidgetView { DataContext = vm };
         var host = new Window { Content = probe, SizeToContent = SizeToContent.WidthAndHeight,
             ShowActivated = false, ShowInTaskbar = false, Left = -10000, Top = -10000 };
         host.Show();
         host.UpdateLayout();
         probe.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var width = probe.DesiredSize.Width;
         var height = probe.DesiredSize.Height;
         Assert.True(height > 0);
         var tileWidth = width + 32;
@@ -203,8 +272,8 @@ internal static class WidgetChecks
             var label = new TextBlock { Text = (fixture ? "LAYOUT FIXTURE · " : "HARDWARE CAPTURE · ") + (i == 0 ? "DARK" : i == 1 ? "LIGHT" : "BUSY"),
                 FontSize = 11, Foreground = i == 1 ? Brushes.Black : Brushes.White, Margin = new Thickness(16, 12, 0, 0), VerticalAlignment = VerticalAlignment.Top };
             tile.Children.Add(label);
-            var view = new WidgetView { DataContext = vm, HorizontalAlignment = HorizontalAlignment.Left,
-                VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(16, 43, 0, 0) };
+            var view = new WidgetView { DataContext = vm, HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Bottom };
             tile.Children.Add(view);
             Canvas.SetLeft(tile, i * tileWidth);
             canvas.Children.Add(tile);
@@ -214,6 +283,24 @@ internal static class WidgetChecks
         host.UpdateLayout();
         canvas.Arrange(new Rect(0, 0, canvas.Width, canvas.Height));
         canvas.UpdateLayout();
+        foreach (var tile in canvas.Children.OfType<Grid>())
+        {
+            var view = tile.Children.OfType<WidgetView>().Single();
+            var items = Descendants<ItemsControl>(view).Single();
+            var rows = Enumerable.Range(0, items.Items.Count)
+                .Select(i => (ContentPresenter)items.ItemContainerGenerator.ContainerFromIndex(i))
+                .Select(p => (FrameworkElement)VisualTreeHelper.GetChild(p, 0)).ToArray();
+            var bounds = rows.Select(r => r.TransformToAncestor(tile).TransformBounds(new Rect(r.RenderSize))).ToArray();
+            Assert.InRange(Math.Abs(bounds[0].Right - tile.ActualWidth), 0, 1);
+            Assert.InRange(Math.Abs(bounds[^1].Bottom - tile.ActualHeight), 0, 1);
+            Assert.InRange(Math.Abs(bounds.Min(b => b.Left) - view.TranslatePoint(new Point(), tile).X), 0, 1);
+            for (var i = 1; i < bounds.Length; i++)
+            {
+                Assert.True(bounds[i].Left <= bounds[i - 1].Left);
+                Assert.True(bounds[i].Right <= bounds[i - 1].Right);
+                Assert.InRange(Math.Abs(bounds[i].Width - bounds[0].Width), 0, 1);
+            }
+        }
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(canvas.Width * scale), (int)Math.Ceiling(canvas.Height * scale), 96 * scale, 96 * scale, PixelFormats.Pbgra32);
         bitmap.Render(canvas);
         var encoder = new PngBitmapEncoder();
@@ -236,7 +323,7 @@ internal static class WidgetChecks
             host.UpdateLayout();
             await Task.Delay(100);
             var effects = Descendants<LiquidMeterEffect>(view).ToArray();
-            Assert.Equal(3, effects.Length);
+            Assert.Equal(4, effects.Length);
             Assert.All(effects, e => Assert.True(e.IsAnimating));
             byte[] Capture(string name)
             {

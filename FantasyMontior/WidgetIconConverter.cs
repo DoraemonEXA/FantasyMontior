@@ -20,7 +20,7 @@ public sealed class WidgetIconConverter : IValueConverter
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         var name = value as string ?? "cpu";
-        if (name is not ("cpu" or "gpu" or "ram")) name = "cpu";
+        if (name is not ("cpu" or "gpu" or "ram" or "disk")) name = "cpu";
         if (Cache.TryGetValue(name, out var image)) return image;
         var resource = Application.GetResourceStream(new Uri($"pack://application:,,,/FantasyMontior;component/Resources/Icons/{name}.svg"));
         using var stream = resource.Stream;

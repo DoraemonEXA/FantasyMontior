@@ -297,8 +297,8 @@ public sealed class WidgetWindow : Window
     }
     internal static Point RestoredPosition(WidgetPosition? position, string monitor, Rect area, double dpi, Size pixels)
     {
-        var x = position is not null && position.Monitor == monitor ? area.Left + position.X * dpi : area.Right - pixels.Width - 24 * dpi;
-        var y = position is not null && position.Monitor == monitor ? area.Top + position.Y * dpi : area.Bottom - pixels.Height - 24 * dpi;
+        var x = position is not null && position.Monitor == monitor ? area.Left + position.X * dpi : area.Right - pixels.Width;
+        var y = position is not null && position.Monitor == monitor ? area.Top + position.Y * dpi : area.Bottom - pixels.Height;
         return ClampPosition(area, x, y, pixels.Width, pixels.Height);
     }
     private static Point ClampPosition(Rect area, double x, double y, double width, double height) => new(

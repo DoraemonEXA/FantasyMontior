@@ -4,6 +4,8 @@ namespace FantasyMontior.Core;
 
 public sealed class LibreHardwareBackend : IHardwareBackend
 {
+    private readonly IDriveSpaceReader _driveReader;
+    private DriveSpaceHardware? _drive;
     private readonly Computer _computer = new()
     {
         IsCpuEnabled = true, IsGpuEnabled = true, IsMemoryEnabled = true,
@@ -11,8 +13,15 @@ public sealed class LibreHardwareBackend : IHardwareBackend
         IsNetworkEnabled = true, IsControllerEnabled = true
     };
 
-    public void Open() => _computer.Open();
-    public IReadOnlyList<IMonitorHardware> Hardware => _computer.Hardware.Select(h => (IMonitorHardware)new Node(h)).ToArray();
+    public LibreHardwareBackend(IDriveSpaceReader? driveReader = null) => _driveReader = driveReader ?? new SystemDriveSpaceReader();
+
+    public void Open()
+    {
+        _computer.Open();
+        _drive = DriveSpaceHardware.Discover(_driveReader);
+    }
+    public IReadOnlyList<IMonitorHardware> Hardware =>
+        [.. _computer.Hardware.Select(h => (IMonitorHardware)new Node(h)), .. _drive is null ? Array.Empty<IMonitorHardware>() : new IMonitorHardware[] { _drive }];
     public void Dispose() => _computer.Close();
 
     private sealed class Node(IHardware hardware) : IMonitorHardware

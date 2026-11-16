@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
+using FantasyMontior.Core;
 
 namespace FantasyMontior.ViewModels;
 
@@ -86,7 +87,7 @@ public sealed class SettingsViewModel : ObservableObject
                 if (settings.Sources is not null)
                     foreach (var (id, source) in settings.Sources)
                         if (!string.IsNullOrWhiteSpace(id) && source is not null &&
-                            source.Kind is "Cpu" or "GpuNvidia" or "GpuAmd" or "GpuIntel" or "Memory")
+                            source.Kind is "Cpu" or "GpuNvidia" or "GpuAmd" or "GpuIntel" or "Memory" or DriveSpaceHardware.HardwareKind)
                             Sources[id] = source with
                             {
                                 Name = string.IsNullOrWhiteSpace(source.Name) ? id : source.Name,
@@ -138,7 +139,15 @@ public sealed class SettingsViewModel : ObservableObject
     public void RememberDevices(IEnumerable<KeyValuePair<string, DeviceSources>> sources)
     {
         var changed = false;
-        foreach (var (id, source) in sources) changed |= Sources.TryAdd(id, source);
+        foreach (var (id, source) in sources)
+        {
+            // Rediscovery can select a new drive; old history remains in the history store,
+            // but remembered descriptors must not accumulate extra widget disk rows.
+            if (source.Kind == DriveSpaceHardware.HardwareKind)
+                foreach (var previous in Sources.Where(p => p.Value.Kind == DriveSpaceHardware.HardwareKind && p.Key != id).ToArray())
+                    changed |= Sources.Remove(previous.Key);
+            changed |= Sources.TryAdd(id, source);
+        }
         if (changed) Save(notify: false);
     }
     private void Save(bool notify = true)

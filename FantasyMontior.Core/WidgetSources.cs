@@ -5,7 +5,8 @@ public static class WidgetSources
 {
     public static bool IsWidgetDevice(HardwareInfo hardware) =>
         hardware.IsCpuOrGpu && hardware.Id == hardware.RootId ||
-        hardware.Kind == "Memory" && hardware.Id == "/ram";
+        hardware.Kind == "Memory" && hardware.Id == "/ram" ||
+        hardware.Kind == DriveSpaceHardware.HardwareKind && hardware.Id == hardware.RootId;
 
     public static SensorReading[] Candidates(MonitoringSnapshot snapshot, string deviceId, string kind)
     {
@@ -34,6 +35,7 @@ public static class WidgetSources
             ("Cpu", "Load") => ["CPU Total"],
             ("Cpu", "Temperature") => ["CPU Package", "Core (Tctl/Tdie)", "Core (Tdie)", "CPU (Tctl/Tdie)"],
             ("Memory", "Load") => ["Memory"],
+            (DriveSpaceHardware.HardwareKind, "Load") => [DriveSpaceHardware.UsageName],
             (_, "Load") when hardwareKind.StartsWith("Gpu", StringComparison.Ordinal) => ["GPU Core"],
             (_, "Temperature") when hardwareKind.StartsWith("Gpu", StringComparison.Ordinal) => ["GPU Core"],
             _ => []

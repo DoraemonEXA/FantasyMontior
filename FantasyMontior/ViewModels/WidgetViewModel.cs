@@ -12,14 +12,16 @@ public sealed class WidgetRow : ObservableObject
     private readonly SensorHistoryService? _history;
     private string _usageMaximum = "—", _temperatureMaximum = "—";
     private SensorSeriesId? _usageHistoryId, _temperatureHistoryId;
-    private string _label = "", _usage = "—", _temperature = "—", _detail = "", _state = "";
+    private string _label = "", _usage = "—", _temperature = "—", _detail = "", _state = "", _capacity = "";
     private double _fill, _readingOpacity = 1;
     private Thickness _indent;
     private bool _updatingChoices, _isUsageLive;
     public string Id { get; }
     public string Kind { get; }
-    public string Icon => Kind == "Cpu" ? "cpu" : Kind == "Memory" ? "ram" : "gpu";
-    public bool HasTemperature => Kind != "Memory";
+    public bool IsDrive => Kind == DriveSpaceHardware.HardwareKind;
+    public string Icon => IsDrive ? "disk" : Kind == "Cpu" ? "cpu" : Kind == "Memory" ? "ram" : "gpu";
+    public bool HasTemperature => Kind != "Memory" && !IsDrive;
+    public string Capacity { get => _capacity; private set => Set(ref _capacity, value); }
     public string Label { get => _label; private set => Set(ref _label, value); }
     public string Usage { get => _usage; private set => Set(ref _usage, value); }
     public string Temperature { get => _temperature; private set => Set(ref _temperature, value); }
@@ -53,7 +55,9 @@ public sealed class WidgetRow : ObservableObject
     public void Apply(MonitoringSnapshot snapshot, DateTimeOffset now, string label, int index)
     {
         Label = label;
-        Indent = new Thickness(Math.Min(index, 4) * 9, 0, (4 - Math.Min(index, 4)) * 9, 3);
+        // Right-align the first row and step later rows left. Let the content size
+        // the window, with spacing only between rows and no reserved outer gutter.
+        Indent = new Thickness(0, index == 0 ? 0 : 3, Math.Min(index, 4) * 9, 0);
         var usage = WidgetSources.Resolve(snapshot, Id, Kind, "Load", Source.UsageKey);
         var temperature = HasTemperature ? WidgetSources.Resolve(snapshot, Id, Kind, "Temperature", Source.TemperatureKey) : null;
         UsageHistoryId = HistoryIdentity(usage, snapshot, "Load", UsageKey);
@@ -63,15 +67,22 @@ public sealed class WidgetRow : ObservableObject
         var staleAfter = TimeSpan.FromSeconds(_settings.SampleSeconds * 3);
         var usageState = usage?.StateAt(now, staleAfter) ?? ReadingState.Unavailable;
         var temperatureState = temperature?.StateAt(now, staleAfter) ?? ReadingState.Unavailable;
+        var used = IsDrive ? CapacityReading(snapshot, DriveSpaceHardware.UsedSuffix) : null;
+        var total = IsDrive ? CapacityReading(snapshot, DriveSpaceHardware.TotalSuffix) : null;
+        Capacity = IsDrive ? FormatCapacity(used?.Value, total?.Value) : "";
+        var capacityState = !IsDrive ? ReadingState.Live : Capacity == "—" ? ReadingState.Unavailable
+            : used!.StateAt(now, staleAfter) == ReadingState.Stale || total!.StateAt(now, staleAfter) == ReadingState.Stale
+                ? ReadingState.Stale : ReadingState.Live;
         IsUsageLive = usageState == ReadingState.Live;
         Usage = Format(usage, "%");
         Temperature = HasTemperature ? Format(temperature, "°C") : "";
         Fill = usageState == ReadingState.Unavailable ? 0 : Math.Clamp(usage!.Value!.Value, 0, 100);
-        State = usageState == ReadingState.Stale || HasTemperature && temperatureState == ReadingState.Stale
-            ? Localization.T("Stale") : usageState == ReadingState.Unavailable || HasTemperature && temperatureState == ReadingState.Unavailable
+        State = usageState == ReadingState.Stale || capacityState == ReadingState.Stale || HasTemperature && temperatureState == ReadingState.Stale
+            ? Localization.T("Stale") : usageState == ReadingState.Unavailable || capacityState == ReadingState.Unavailable || HasTemperature && temperatureState == ReadingState.Unavailable
                 ? Localization.T("Unavailable") : "";
         ReadingOpacity = State.Length == 0 ? 1 : .55;
-        Detail = $"{Source.Name}\n{Describe(usage)}" + (HasTemperature ? $"\n{Describe(temperature)}" : "");
+        Detail = $"{Source.Name}\n{Describe(usage)}" + (HasTemperature ? $"\n{Describe(temperature)}" : "")
+            + (IsDrive ? $"\n{Localization.T("Used / total")}: {Capacity}" : "");
         _updatingChoices = true;
         try
         {
@@ -98,6 +109,18 @@ public sealed class WidgetRow : ObservableObject
     }
 
     private static string FormatMaximum(double? value, string unit) => value is { } number ? $"{number:0}{unit}" : "—";
+
+    private SensorReading? CapacityReading(MonitoringSnapshot snapshot, string suffix) =>
+        snapshot.Sensors.FirstOrDefault(s => s.HardwareId == Id && s.Key == Id + suffix && s.Kind == "Data" && s.Unit == "GiB");
+
+    private static string FormatCapacity(double? used, double? total)
+    {
+        if (used is not { } usedValue || total is not { } totalValue || !double.IsFinite(usedValue) ||
+            !double.IsFinite(totalValue) || totalValue <= 0 || usedValue < 0 || usedValue > totalValue) return "—";
+        var divisor = totalValue >= 1024 ? 1024 : 1;
+        var unit = divisor == 1024 ? "TiB" : "GiB";
+        return $"{usedValue / divisor:0.0} / {totalValue / divisor:0.0} {unit}";
+    }
 
     private static string Format(SensorReading? reading, string unit) => reading?.Value is { } value && double.IsFinite(value)
         ? $"{value:0}{unit}" : "—";
@@ -134,7 +157,8 @@ public sealed class WidgetViewModel : ObservableObject
         if (!descriptors.Values.Any(d => d.Kind == "Cpu")) descriptors["waiting:cpu"] = new("CPU", "Cpu");
         if (!descriptors.Values.Any(d => d.Kind.StartsWith("Gpu", StringComparison.Ordinal))) descriptors["waiting:gpu"] = new("GPU", "GpuNvidia");
         if (!descriptors.Values.Any(d => d.Kind == "Memory")) descriptors["waiting:ram"] = new("RAM", "Memory");
-        var ordered = descriptors.OrderBy(p => p.Value.Kind == "Cpu" ? 0 : p.Value.Kind == "Memory" ? 2 : 1)
+        if (!descriptors.Values.Any(d => d.Kind == DriveSpaceHardware.HardwareKind)) descriptors["waiting:disk"] = new("Disk", DriveSpaceHardware.HardwareKind);
+        var ordered = descriptors.OrderBy(p => p.Value.Kind == "Cpu" ? 0 : p.Value.Kind == "Memory" ? 2 : p.Value.Kind == DriveSpaceHardware.HardwareKind ? 3 : 1)
             .ThenBy(p => p.Key, StringComparer.Ordinal).ToArray();
         foreach (var row in Rows.Where(r => !descriptors.ContainsKey(r.Id)).ToArray()) Rows.Remove(row);
         for (var i = 0; i < ordered.Length; i++)
@@ -143,9 +167,10 @@ public sealed class WidgetViewModel : ObservableObject
             var row = Rows.FirstOrDefault(r => r.Id == id);
             if (row is null) { row = new(id, device.Kind, Settings, _history); Rows.Insert(i, row); }
             else if (Rows.IndexOf(row) != i) Rows.Move(Rows.IndexOf(row), i);
-            var category = device.Kind == "Cpu" ? "CPU" : device.Kind == "Memory" ? "RAM" : "GPU";
-            var siblings = ordered.Where(p => (p.Value.Kind == "Cpu" ? "CPU" : p.Value.Kind == "Memory" ? "RAM" : "GPU") == category).ToArray();
+            var category = device.Kind == "Cpu" ? "CPU" : device.Kind == "Memory" ? "RAM" : device.Kind == DriveSpaceHardware.HardwareKind ? "Disk" : "GPU";
+            var siblings = ordered.Where(p => (p.Value.Kind == "Cpu" ? "CPU" : p.Value.Kind == "Memory" ? "RAM" : p.Value.Kind == DriveSpaceHardware.HardwareKind ? "Disk" : "GPU") == category).ToArray();
             var label = category + (siblings.Length > 1 ? $" {Array.FindIndex(siblings, p => p.Key == id) + 1}" : "");
+            if (row.IsDrive) label = device.Name == "Disk" ? Localization.T("Disk") : Localization.F("Disk {0}", device.Name);
             row.Apply(snapshot, now, label, i);
         }
     }

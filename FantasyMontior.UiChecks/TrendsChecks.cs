@@ -58,8 +58,16 @@ internal static class TrendsChecks
         var tabs = Descendants<TabControl>(root).Single();
         Assert.Equal("TrendsTab", ((TabItem)tabs.SelectedItem).Name);
         Assert.True(model.IsActive);
-        Assert.Equal(3, model.Devices.Count);
-        Assert.Equal(6, model.Sensors.Count);
+        Assert.Equal(4, model.Devices.Count);
+        Assert.Equal(9, model.Sensors.Count);
+        var disk = model.Devices.Single(d => d.Row.IsDrive);
+        Assert.Equal("Disk C:", disk.Row.Label);
+        Assert.False(disk.Row.HasTemperature);
+        Assert.Null(disk.Temperature.Id);
+        Assert.Equal("%", disk.Usage.Data.Unit);
+        Assert.NotNull(disk.Usage.Data.Series);
+        model.Select(disk.Usage);
+        Assert.Equal(disk.Usage.Id, model.SelectedSensor!.Id);
         Assert.NotEqual("—", session.Widget.Rows[0].UsageMaximum);
         Render(root, 1080, 900, 1, Path.Combine(output, "trends-fixture-en.png"));
         var chart = Descendants<SensorTrendChart>(root).First(c => c.Data?.Series?.Sensor.Id == session.Widget.Rows[0].UsageHistoryId);
@@ -116,7 +124,7 @@ internal static class TrendsChecks
         settings.Language = "en";
         session.Widget.Apply(snapshot with { Sensors = [], Hardware = [] }, now.AddMinutes(1));
         model.Refresh(now.AddMinutes(1), true);
-        Assert.Equal(6, model.Sensors.Count);
+        Assert.Equal(9, model.Sensors.Count);
         Assert.NotNull(model.Detail.Data.Series);
         Assert.NotEqual("—", session.Widget.Rows[0].UsageMaximum);
         scroller.ScrollToTop();
@@ -130,7 +138,7 @@ internal static class TrendsChecks
         history.Record(multiGpu, TimeSpan.FromSeconds(10));
         session.Widget.Apply(multiGpu, now);
         model.Refresh(now, true);
-        Assert.Equal(4, model.Devices.Count);
+        Assert.Equal(5, model.Devices.Count);
         Assert.Equal("11%", model.Devices.Single(d => d.Row.Id == "gpu2").Row.UsageMaximum);
         Assert.NotEqual(model.Devices.Single(d => d.Row.Id == "gpu").Usage.Id, model.Devices.Single(d => d.Row.Id == "gpu2").Usage.Id);
         Render(root, 1080, 900, 1, Path.Combine(output, "trends-multi-gpu-fixture.png"));
@@ -227,15 +235,20 @@ internal static class TrendsChecks
     }
     private static MonitoringSnapshot Fixture(DateTimeOffset time, int second)
     {
+        const string disk = "/logical-drive/C";
         var wave = 45 + 24 * Math.Sin(second / 3000d) + 12 * Math.Cos(second / 710d);
         return new(time, time, "Monitoring",
-            [new("cpu", "TEST CPU · Example processor", "Cpu", "cpu"), new("gpu", "TEST GPU · Example graphics", "GpuNvidia", "gpu"), new("/ram", "TEST RAM", "Memory", "/ram")],
+            [new("cpu", "TEST CPU · Example processor", "Cpu", "cpu"), new("gpu", "TEST GPU · Example graphics", "GpuNvidia", "gpu"), new("/ram", "TEST RAM", "Memory", "/ram"),
+             new(disk, "C:", DriveSpaceHardware.HardwareKind, disk)],
             [new("cpu/load", "cpu", "CPU Total", "Load", "%", wave, time),
              new("cpu/temp", "cpu", "CPU Package", "Temperature", "°C", 43 + wave * .4, time),
              new("gpu/load", "gpu", "GPU Core", "Load", "%", Math.Clamp(wave * 1.2 + 5 * Math.Sin(second / 70d), 0, 100), time),
              new("gpu/temp", "gpu", "GPU Core", "Temperature", "°C", 38 + wave * .5, time),
              new("gpu/encode", "gpu", "GPU Video Encode", "Load", "%", 12, time),
-             new("ram/load", "/ram", "Memory", "Load", "%", 35 + 10 * Math.Sin(second / 10000d), time)], []);
+             new("ram/load", "/ram", "Memory", "Load", "%", 35 + 10 * Math.Sin(second / 10000d), time),
+             new(disk + DriveSpaceHardware.UsageSuffix, disk, DriveSpaceHardware.UsageName, "Load", "%", 60 + second / 8640d, time),
+             new(disk + DriveSpaceHardware.UsedSuffix, disk, DriveSpaceHardware.UsageName, "Data", "GiB", 300 + second / 1728d, time),
+             new(disk + DriveSpaceHardware.TotalSuffix, disk, "Total Space", "Data", "GiB", 500, time)], []);
     }
     private static void TextElementFont(FrameworkElement root, Window window)
     {

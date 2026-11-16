@@ -1,4 +1,9 @@
 {
+  "Disk": ["Disk", "磁盘"],
+  "Disk {0}": ["Disk {0}", "磁盘 {0}"],
+  "LogicalDrive": ["Logical drive", "逻辑驱动器"],
+  "Used / total": ["Used / total", "已用 / 总容量"],
+  "UsedCapacity": ["Used / total capacity", "已用 / 总容量"],
   "Max24h": ["Max 24h", "24小时峰值"],
   "Trends": ["Trends", "趋势"],
   "TrendsHeading": ["Your last 24 hours", "最近24小时"],

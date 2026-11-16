@@ -75,6 +75,9 @@ internal static class DesktopChecks
             widget.ResetPosition();
             DesktopNative.GetWindowRect(hwnd, out var before);
             Assert.True(before.Right > 0 && before.Bottom > 0); // Parent origin is -10000, not the widget's screen origin.
+            var area = System.Windows.Forms.Screen.FromHandle(hwnd).WorkingArea;
+            Assert.InRange(Math.Abs(before.Right - area.Right), 0, 1);
+            Assert.InRange(Math.Abs(before.Bottom - area.Bottom), 0, 1);
             widget.Hide();
             Assert.False(widget.IsVisible);
             widget.Reveal();
@@ -381,8 +384,8 @@ internal static class DesktopChecks
             }
         }
         var fallback = new Rect(0, 0, 1920, 1040);
-        Assert.Equal(new Point(1152, 672), WidgetWindow.RestoredPosition(saved, "PRIMARY", fallback, 2, new Size(720, 320)));
-        Assert.Equal(new Point(1152, 672), WidgetWindow.RestoredPosition(null, "PRIMARY", fallback, 2, new Size(720, 320)));
+        Assert.Equal(new Point(1200, 720), WidgetWindow.RestoredPosition(saved, "PRIMARY", fallback, 2, new Size(720, 320)));
+        Assert.Equal(new Point(1200, 720), WidgetWindow.RestoredPosition(null, "PRIMARY", fallback, 2, new Size(720, 320)));
         Assert.Equal(new Point(0, 0), WidgetWindow.RestoredPosition(saved, "4K", fallback, 2, new Size(4000, 2200)));
         Console.WriteLine("DESKTOP_SCALE_CHECKS: PASS - 175/200/250 percent geometry, repeated 4K/game-mode round trips, negative origin, fallback and oversized viewport. Simulated geometry only.");
     }

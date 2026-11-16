@@ -34,12 +34,12 @@
     <UserControl.LayoutTransform>
         <ScaleTransform ScaleX="{Binding Settings.FontSize, Converter={StaticResource WidgetScale}}" ScaleY="{Binding Settings.FontSize, Converter={StaticResource WidgetScale}}"/>
     </UserControl.LayoutTransform>
-    <Grid Background="Transparent" Width="360">
+    <Grid Background="Transparent">
         <StackPanel>
             <ItemsControl ItemsSource="{Binding Rows}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Grid Margin="{Binding Indent}">
+                        <Grid Width="324" HorizontalAlignment="Right" Margin="{Binding Indent}">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="27"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Width="24" Height="26" VerticalAlignment="Top" Margin="0,3,0,0" BorderBrush="{StaticResource Silver}" BorderThickness="1.3" CornerRadius="2">
                                 <Border.Style>
@@ -48,6 +48,7 @@
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding Icon}" Value="gpu"><Setter Property="Background" Value="#DD31464A"/></DataTrigger>
                                             <DataTrigger Binding="{Binding Icon}" Value="ram"><Setter Property="Background" Value="#DD304C60"/></DataTrigger>
+                                            <DataTrigger Binding="{Binding Icon}" Value="disk"><Setter Property="Background" Value="#DD4B4B35"/></DataTrigger>
                                         </Style.Triggers>
                                     </Style>
                                 </Border.Style>
@@ -58,16 +59,30 @@
                                 <Rectangle Height="2" Fill="{StaticResource Silver}" VerticalAlignment="Top" Margin="0,2,0,0"/>
                                 <StackPanel Margin="6,5,7,5">
                                     <Grid>
+                                        <Grid.Style><Style TargetType="Grid"><Style.Triggers><DataTrigger Binding="{Binding IsDrive}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Grid.Style>
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="72"/><ColumnDefinition Width="76"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="{Binding Label}" Style="{StaticResource StatusText}"/>
                                         <TextBlock Grid.Column="1" Text="{Binding Usage}" HorizontalAlignment="Right" Opacity="{Binding ReadingOpacity}" Style="{StaticResource StatusText}"/>
                                         <TextBlock Grid.Column="2" Text="{Binding Temperature}" HorizontalAlignment="Right" Opacity="{Binding ReadingOpacity}" Style="{StaticResource StatusText}"/>
                                     </Grid>
                                     <Grid Margin="0,2,0,0" TextBlock.FontSize="11" TextBlock.Foreground="#CBD7CD">
+                                        <Grid.Style><Style TargetType="Grid"><Style.Triggers><DataTrigger Binding="{Binding IsDrive}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Grid.Style>
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="72"/><ColumnDefinition Width="76"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="{DynamicResource Text.Max24h}"/>
                                         <TextBlock Grid.Column="1" Text="{Binding UsageMaximum}" HorizontalAlignment="Right"/>
                                         <TextBlock Grid.Column="2" Text="{Binding TemperatureMaximum}" HorizontalAlignment="Right"/>
+                                    </Grid>
+                                    <Grid Visibility="{Binding IsDrive, Converter={StaticResource VisibleWhenTrue}}">
+                                        <TextBlock Text="{Binding Label}" Style="{StaticResource StatusText}"/>
+                                        <TextBlock Text="{Binding Usage}" HorizontalAlignment="Right" Opacity="{Binding ReadingOpacity}" Style="{StaticResource StatusText}"/>
+                                    </Grid>
+                                    <Grid Visibility="{Binding IsDrive, Converter={StaticResource VisibleWhenTrue}}" Margin="0,2,0,0" TextBlock.FontSize="11" TextBlock.Foreground="#CBD7CD">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Capacity}" Opacity="{Binding ReadingOpacity}" Margin="0,0,8,0" AutomationProperties.Name="{DynamicResource Text.UsedCapacity}"/>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                            <TextBlock Text="{DynamicResource Text.Max24h}" Margin="0,0,6,0"/>
+                                            <TextBlock Text="{Binding UsageMaximum}"/>
+                                        </StackPanel>
                                     </Grid>
                                     <Grid Height="8" Margin="0,3,0,0">
                                         <Border Background="#F008100B" BorderBrush="{StaticResource Silver}" BorderThickness="1"/>
